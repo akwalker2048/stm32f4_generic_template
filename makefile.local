@@ -1,0 +1,25 @@
+#Local Compiler Defines
+TOOL_PREFIX = /home/awalker/opt/gcc-arm-none-eabi-6_2-2016q4
+PRG_PREFIX  = $(TOOL_PREFIX)/bin/arm-none-eabi-
+LIB_PREFIX  = $(TOOL_PREFIX)/lib/gcc/arm-none-eabi/6.2.1/thumb/v7e-m/fpv4-sp/hard
+LIB_M_C_PREFIX = /home/awalker/opt/gcc-arm-none-eabi-6_2-2016q4/arm-none-eabi/lib/hard
+GCC_INCLUDE = $(TOOL_PREFIX)/arm-none-eabi/include
+
+CC      = $(PRG_PREFIX)gcc
+LD      = $(PRG_PREFIX)gcc
+CP      = $(PRG_PREFIX)objcopy
+OD      = $(PRG_PREFIX)objdump
+AS      = $(PRG_PREFIX)as
+
+#OpenOCD Command
+OPENOCD_CMD = openocd -f ./scripts/openocd.cfg
+
+#ST Specific Stuff
+ST_CMSIS_INCLUDE = /home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Libraries/CMSIS/Device/ST/STM32F4xx/Include
+ST_CORE_INCLUDE = /home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Libraries/CMSIS/Include
+ST_STD_PERIPH_INCLUDE = /home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Libraries/STM32F4xx_StdPeriph_Driver/inc
+ST_STD_PERIPH_SRC = /home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Libraries/STM32F4xx_StdPeriph_Driver/src
+ST_STD_PERIPH_EVAL_INCLUDE = -I/home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Utilities/STM32_EVAL/STM3240_41_G_EVAL -I/home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Utilities/STM32_EVAL/Common
+
+#Hardware Specific Stuff
+LOCAL_CFLAGS = -D"STM32F40_41xxx" -D"USE_STDPERIPH_DRIVER" -D"HSE_VALUE=8000000"
