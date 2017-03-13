@@ -33,14 +33,16 @@
 #include "stm32f4xx_conf.h"
 
 /* Exported define -----------------------------------------------------------*/
-/* Red    - D14 */
-#define LED_PIN_RED      GPIO_Pin_14
-/* Green  - D12 */
-#define LED_PIN_GREEN    GPIO_Pin_12
-/* Blue   - D15 */
-#define LED_PIN_BLUE     GPIO_Pin_15
-/* Orange - D13 */
-#define LED_PIN_ORANGE   GPIO_Pin_13
+
+/* /\* Green  - D12 *\/ */
+/* #define LED_PIN_GREEN    GPIO_Pin_12 */
+/* /\* Orange - D13 *\/ */
+/* #define LED_PIN_ORANGE   GPIO_Pin_13 */
+/* /\* Red    - D14 *\/ */
+/* #define LED_PIN_RED      GPIO_Pin_14 */
+/* /\* Blue   - D15 *\/ */
+/* #define LED_PIN_BLUE     GPIO_Pin_15 */
+
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/

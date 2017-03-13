@@ -1,4 +1,4 @@
-SOURCES_PROJECT = main.c stm32f4xx_it.c system_stm32f4xx.c
+SOURCES_PROJECT = main.c hardware_STM32F407G_DISC1.c stm32f4xx_it.c system_stm32f4xx.c
 SOURCES_STD_PERIPH = misc.c stm32f4xx_rcc.c stm32f4xx_adc.c stm32f4xx_dac.c stm32f4xx_dma.c stm32f4xx_exti.c stm32f4xx_gpio.c stm32f4xx_tim.c stm32f4xx_usart.c
 SOURCES_ASSEMBLY = startup_stm32f40_41xxx.s
 

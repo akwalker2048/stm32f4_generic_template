@@ -143,24 +143,26 @@ void PendSV_Handler(void)
   * @param  None
   * @retval None
   */
-void SysTick_Handler(void)
-{
-   static uint32_t ii = 0;
+/* void SysTick_Handler(void) */
+/* { */
+/*    static uint32_t ii = 0; */
 
-   ii++;
-   if(ii%500 == 0)
-   {
-      if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET)
-      {
-         GPIO_ResetBits(GPIOD, LED_PIN_GREEN);
-      }
-      else
-      {
-         GPIO_SetBits(GPIOD, LED_PIN_GREEN);
-      }
-   }
+/*    ii++; */
+/*    if(ii%500 == 0) */
+/*    { */
+/*       if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET) */
+/*       { */
+/*          GPIO_ResetBits(GPIOD, LED_PIN_GREEN); */
+/*          GPIO_SetBits(GPIOD, LED_PIN_BLUE); */
+/*       } */
+/*       else */
+/*       { */
+/*          GPIO_SetBits(GPIOD, LED_PIN_GREEN); */
+/*          GPIO_ResetBits(GPIOD, LED_PIN_BLUE); */
+/*       } */
+/*    } */
 
-}
+/* } */
 
 /******************************************************************************/
 /*                 STM32F4xx Peripherals Interrupt Handlers                   */
