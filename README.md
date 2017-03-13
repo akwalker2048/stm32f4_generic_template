@@ -13,3 +13,10 @@ project to save time.
 -I'm not a fan of *The Cube*
 
 -I'm not a fan of *IDE's*
+
+Notes
+--------------
+
+I found some good stuff here among other sites:
+
+http://www.triplespark.net/elec/pdev/arm/stm32.html

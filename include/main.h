@@ -30,51 +30,17 @@
 #define __MAIN_H
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f4xx.h"
-#include "stm32f4xx_rcc.h"
-#include "stm32f4xx_adc.h"
-#include "stm32f4xx_dac.h"
-#include "stm32f4xx_dma.h"
-#include "stm32f4xx_exti.h"
-#include "stm32f4xx_gpio.h"
-#include "stm32f4xx_tim.h"
-#include "stm32f4xx_usart.h"
-
-
-/* #if defined (USE_STM324xG_EVAL) */
-/*   #include "stm324xg_eval.h" */
-
-/* #elif defined (USE_STM324x7I_EVAL) */
-/*   #include "stm324x7i_eval.h" */
-
-/* #elif defined (USE_STM324x9I_EVAL) */
-/*   #include "stm324x9i_eval.h" */
-
-/* #else */
-/*  #error "Please select first the Evaluation board used in your application (in Project Options)" */
-/* #endif */
+#include "stm32f4xx_conf.h"
 
 /* Exported define -----------------------------------------------------------*/
-/* #if defined (USE_STM324xG_EVAL) */
-/*   #define LED1_PIN                         GPIO_Pin_6 */
-/*   #define LED2_PIN                         GPIO_Pin_8 */
-
-/* #endif /\* USE_STM324xG_EVAL *\/ */
-
-/* #if defined (USE_STM324x7I_EVAL)     */
-/*   #define LED1_PIN                         GPIO_Pin_6 */
-/*   #define LED2_PIN                         GPIO_Pin_8 */
-
-/* #endif /\* USE_STM324x7I_EVAL *\/ */
-
-/* #if defined (USE_STM324x9I_EVAL)     */
-/*   #define LED1_PIN                         GPIO_Pin_6 */
-/*   #define LED2_PIN                         GPIO_Pin_7 */
-
-/* #endif /\* USE_STM324x9I_EVAL *\/ */
-
-#define LED1_PIN    GPIO_Pin_14
-#define LED2_PIN    GPIO_Pin_13
+/* Red    - D14 */
+#define LED_PIN_RED      GPIO_Pin_14
+/* Green  - D12 */
+#define LED_PIN_GREEN    GPIO_Pin_12
+/* Blue   - D15 */
+#define LED_PIN_BLUE     GPIO_Pin_15
+/* Orange - D13 */
+#define LED_PIN_ORANGE   GPIO_Pin_13
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
