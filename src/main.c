@@ -16,7 +16,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "hardware_STM32F407G_DISC1.h"
-
+#include "lepton_functions.h"
 
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,9 +44,14 @@ int main(void)
    init_gpio();
    init_systick();
    init_usart();
+   init_pushbutton();
+   init_spi();
+   init_i2c();
 
    while (1)
    {
+      lepton_transfer();
+      lepton_print_image_binary_background();
    }
 
 }
@@ -68,6 +73,7 @@ void assert_failed(uint8_t* file, uint32_t line)
    /* Infinite loop */
    while (1)
    {
+
    }
 }
 #endif

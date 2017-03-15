@@ -1,5 +1,5 @@
-SOURCES_PROJECT = main.c hardware_STM32F407G_DISC1.c stm32f4xx_it.c system_stm32f4xx.c
-SOURCES_STD_PERIPH = misc.c stm32f4xx_rcc.c stm32f4xx_adc.c stm32f4xx_dac.c stm32f4xx_dma.c stm32f4xx_exti.c stm32f4xx_gpio.c stm32f4xx_tim.c stm32f4xx_usart.c
+SOURCES_PROJECT = main.c hardware_STM32F407G_DISC1.c stm32f4xx_it.c system_stm32f4xx.c lepton_functions.c
+SOURCES_STD_PERIPH = misc.c stm32f4xx_rcc.c stm32f4xx_adc.c stm32f4xx_dac.c stm32f4xx_dma.c stm32f4xx_exti.c stm32f4xx_gpio.c stm32f4xx_tim.c stm32f4xx_usart.c stm32f4xx_syscfg.c stm32f4xx_spi.c stm32f4xx_i2c.c
 SOURCES_ASSEMBLY = startup_stm32f40_41xxx.s
 
 SOURCES = $(SOURCES_PROJECT) $(SOURCES_STD_PERIPH)
@@ -82,33 +82,45 @@ debug:
 	@ echo "Objects:"  $(OBJECTS)
 
 connect:
-	@ echo "...connect to target with openocd..."
+	@ echo "/* ***************************************************** */"
+	@ echo "/* ...connect to target with openocd...                  */"
+	@ echo "/* ***************************************************** */"
 	$(OPENOCD_CMD)
 
 program: main.bin
-	@ echo "...flash main.bin to target..."
+	@ echo "/* ***************************************************** */"
+	@ echo "/* ...flash main.bin to target...                        */"
+	@ echo "/* ***************************************************** */"
 	$(STM32FLASH) main.bin
 
 clean:
 	-rm -f main.lst $(OBJ_OBJECTS) main.elf main.lst main.bin
 
 main.bin: main.elf
-	@ echo "...copying"
+	@ echo "/* ***************************************************** */"
+	@ echo "/* ...copying                                             */"
+	@ echo "/* ***************************************************** */"
 	$(CP) $(CPFLAGS) main.elf main.bin
 	$(OD) $(ODFLAGS) main.elf > main.lst
 
 main.elf: $(OBJ_OBJECTS)
-	@ echo "...linking"
+	@ echo "/* ***************************************************** */"
+	@ echo "/* ...linking                                            */"
+	@ echo "/* ***************************************************** */"
 	$(LD) $(LFLAGS) -o main.elf $(OBJ_OBJECTS) $(LFLAGS_END)
 
 
 $(OBJ_DIR)/%.o: %.c
 #%.o: %.c
-	@ echo "...compiling c"
+	@ echo "/* ***************************************************** */"
+	@ echo "/* ...compiling " $(notdir $<) "*/"
+	@ echo "/* ***************************************************** */"
 	$(CC) $(CFLAGS) $< -o $@
 
 $(OBJ_DIR)/%.o: %.s
-	@ echo "...compiling assembly"
+	@ echo "/* ***************************************************** */"
+	@ echo "/* ...compiling assembly " $(notdir $<) "*/"
+	@ echo "/* ***************************************************** */"
 	$(AS) $< -o $@
 
 
