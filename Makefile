@@ -1,4 +1,4 @@
-SOURCES_PROJECT = main.c hardware_STM32F407G_DISC1.c stm32f4xx_it.c system_stm32f4xx.c lepton_functions.c
+SOURCES_PROJECT = main.c hardware_STM32F407G_DISC1.c stm32f4xx_it.c system_stm32f4xx.c lepton_functions.c generic_packet.c gp_receive.c
 SOURCES_STD_PERIPH = misc.c stm32f4xx_rcc.c stm32f4xx_adc.c stm32f4xx_dac.c stm32f4xx_dma.c stm32f4xx_exti.c stm32f4xx_gpio.c stm32f4xx_tim.c stm32f4xx_usart.c stm32f4xx_syscfg.c stm32f4xx_spi.c stm32f4xx_i2c.c
 SOURCES_ASSEMBLY = startup_stm32f40_41xxx.s
 
@@ -24,7 +24,7 @@ STM32FLASH = ./scripts/stm32_flash.pl
 
 #Where to find sources
 LOCAL_SRC_DIR = src
-VPATH = $(LOCAL_SRC_DIR) $(ST_STD_PERIPH_SRC)
+VPATH = $(LOCAL_SRC_DIR) $(ST_STD_PERIPH_SRC)  $(GENERIC_PACKET_SRC_DIR)
 
 
 
@@ -65,6 +65,7 @@ VPATH = $(LOCAL_SRC_DIR) $(ST_STD_PERIPH_SRC)
 
 CFLAGS  =  -I. -IInclude -Iinclude -Iinc \
 	-I$(ST_STD_PERIPH_INCLUDE) -I$(ST_CMSIS_INCLUDE) -I$(GCC_INCLUDE) -I$(ST_CORE_INCLUDE) $(ST_STD_PERIPH_EVAL_INCLUDE) \
+	-I$(GENERIC_PACKET_INC_DIR) \
 	-c -fno-common -O2 -g  \
 	-mcpu=cortex-m4 -mthumb \
 	-mfloat-abi=hard -mfpu=fpv4-sp-d16 \
