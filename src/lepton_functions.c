@@ -7,9 +7,13 @@
 /* SPI lepton_spi(SPI_MOSI, SPI_MISO, SPI_SCK); */
 /* DigitalOut spi_cs(SPI_CS); */
 
+#define VOSPI_NUM_FRAMES_IN_IMAGE (60)
 #define VOSPI_FRAME_SIZE    (164)
 #define VOSPI_RESET_TIME_MS (185)
 
+#define VOSPI_ALL_IMAGE_FRAME_BYTES (VOSPI_NUM_FRAMES_IN_IMAGE*VOSPI_FRAME_SIZE)
+
+uint8_t lepton_mega_packet[VOSPI_ALL_IMAGE_FRAME_BYTES];
 uint8_t lepton_frame_packet[VOSPI_FRAME_SIZE];
 int lepton_image[80][80];
 
@@ -84,12 +88,40 @@ void lepton_transfer(void)
    GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
 
    spi_cs_enable();
-   for(i=0;i<VOSPI_FRAME_SIZE;i++)
+   /* for(i=0;i<VOSPI_FRAME_SIZE;i++) */
+   /* { */
+   /*    lepton_frame_packet[i] = spi_read_byte(); */
+   /* } */
+
+   for(i=0;i<VOSPI_ALL_IMAGE_FRAME_BYTES;i++)
    {
-      lepton_frame_packet[i] = spi_read_byte();
-      usart_write_byte(lepton_frame_packet[i]);
+      lepton_mega_packet[i] = spi_read_byte();
    }
    spi_cs_disable();
+
+
+   usart_write_byte(0xDE);
+   usart_write_byte(0xAD);
+   usart_write_byte(0xBE);
+   usart_write_byte(0xEF);
+   usart_write_byte(0xDE);
+   usart_write_byte(0xAD);
+   usart_write_byte(0xBE);
+   usart_write_byte(0xEF);
+   for(i=0;i<VOSPI_ALL_IMAGE_FRAME_BYTES;i++)
+   {
+      usart_write_byte(lepton_mega_packet[i]);
+   }
+   usart_write_byte(0xDE);
+   usart_write_byte(0xAD);
+   usart_write_byte(0xBE);
+   usart_write_byte(0xEF);
+   usart_write_byte(0xDE);
+   usart_write_byte(0xAD);
+   usart_write_byte(0xBE);
+   usart_write_byte(0xEF);
+
+   blocking_wait_ms(185);
 
 
    if(((lepton_frame_packet[0]&0xf) != 0x0f))

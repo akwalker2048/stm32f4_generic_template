@@ -43,15 +43,32 @@ int main(void)
 
    init_gpio();
    init_systick();
-   init_usart();
+   init_usart_one();
+   /* init_usart_three(); */
    init_pushbutton();
    init_spi();
    init_i2c();
 
-   while (1)
+   GPIO_SetBits(GPIOD, LED_PIN_RED);
+   blocking_wait_ms(1000);
+   GPIO_ResetBits(GPIOD, LED_PIN_RED);
+   blocking_wait_ms(1000);
+   /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
+   /* blocking_wait_ms(1000); */
+   /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
+   /* blocking_wait_ms(1000); */
+   /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
+   /* blocking_wait_ms(1000); */
+   /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
+
+
+   blocking_wait_ms(185);
+
+   while(1)
    {
       lepton_transfer();
-      lepton_print_image_binary_background();
+      /* lepton_print_image_binary_background(); */
+      process_rx_buffer();
    }
 
 }

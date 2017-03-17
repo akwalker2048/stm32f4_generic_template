@@ -21,5 +21,8 @@ ST_STD_PERIPH_INCLUDE = /home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Lib
 ST_STD_PERIPH_SRC = /home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Libraries/STM32F4xx_StdPeriph_Driver/src
 ST_STD_PERIPH_EVAL_INCLUDE = -I/home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Utilities/STM32_EVAL/STM3240_41_G_EVAL -I/home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Utilities/STM32_EVAL/Common
 
+GENERIC_PACKET_SRC_DIR = ../stm32f4_generic_packet/src
+GENERIC_PACKET_INC_DIR = ../stm32f4_generic_packet/include
+
 #Hardware Specific Stuff
 LOCAL_CFLAGS = -D"STM32F40_41xxx" -D"USE_STDPERIPH_DRIVER" -D"HSE_VALUE=8000000"

@@ -4,12 +4,19 @@
 /* Variables Global Within This File */
 uint8_t gpio_initialized = 0;
 uint8_t systick_initialized = 0;
-uint8_t usart_initialized = 0;
+uint8_t usart_one_initialized = 0;
+uint8_t usart_three_initialized = 0;
 uint8_t pushbutton_initialized = 0;
 uint8_t analog_input_initialized = 0;
 uint8_t tia_initialized = 0;
 uint8_t spi_initialized = 0;
 uint8_t i2c_initialized = 0;
+
+/* Circular Receive Buffer */
+#define RX_BUFFER_SIZE 256
+uint8_t rx_buffer[RX_BUFFER_SIZE];
+uint16_t rx_buffer_head = 0;
+uint16_t rx_buffer_tail = 0;
 
 /* Free Running Coutner */
 volatile uint32_t ms_counter = 0;
@@ -43,6 +50,8 @@ void init_gpio(void)
 /* ****************************************************************** */
 void init_systick(void)
 {
+   /* Make sure we are using the correct value for SystemCoreClock! */
+   SystemCoreClockUpdate();
    /* Set SysTick to expire every ms. */
    if (SysTick_Config(SystemCoreClock / 1000))
    {
@@ -56,7 +65,7 @@ void init_systick(void)
 /* ****************************************************************** */
 /* USART Initialization                                               */
 /* ****************************************************************** */
-void init_usart(void)
+void init_usart_three(void)
 {
    USART_InitTypeDef USART_InitStructure;
    NVIC_InitTypeDef NVIC_InitStructure;
@@ -72,17 +81,17 @@ void init_usart(void)
     */
 
    /* Enable GPIO clock */
-   RCC_APB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
    /* Connect PXx to USARTx_Tx*/
    GPIO_PinAFConfig(GPIOD, GPIO_PinSource8, GPIO_AF_USART3);
-   /* Connect PXx to USARTx_Rx*/
+   /* Connect PXx to USARTx_Rx */
    GPIO_PinAFConfig(GPIOD, GPIO_PinSource9, GPIO_AF_USART3);
    /* Configure USART Tx as alternate function  */
    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
    GPIO_Init(GPIOD, &GPIO_InitStructure);
    /* Configure USART Rx as alternate function  */
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
@@ -91,12 +100,14 @@ void init_usart(void)
 
    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
 
+   /* USART_InitStructure.USART_BaudRate = 115200; */
    USART_InitStructure.USART_BaudRate = 115200;
    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
    USART_InitStructure.USART_StopBits = USART_StopBits_1;
    USART_InitStructure.USART_Parity = USART_Parity_No;
    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+   /* USART_InitStructure.USART_Mode = USART_Mode_Rx; */
 
    USART_OverSampling8Cmd(USART3, ENABLE);
 
@@ -116,9 +127,73 @@ void init_usart(void)
    /* Enable USART */
    USART_Cmd(USART3, ENABLE);
 
-   usart_initialized = 1;
+   usart_three_initialized = 1;
 
 }
+
+void init_usart_one(void)
+{
+   USART_InitTypeDef USART_InitStructure;
+   NVIC_InitTypeDef NVIC_InitStructure;
+   GPIO_InitTypeDef  GPIO_InitStructure;
+
+   /* Init USART Pins */
+   /* USART1:
+    *   TX -> B6
+    *   RX -> B7
+    */
+
+   /* Enable GPIO clock */
+   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+   /* Connect PXx to USARTx_Tx*/
+   GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_USART1);
+   /* Connect PXx to USARTx_Rx*/
+   GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_USART1);
+   /* Configure USART Tx as alternate function */
+   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+   GPIO_Init(GPIOB, &GPIO_InitStructure);
+   /* Configure USART Rx as alternate function  */
+   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+   GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+   RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+
+   /* USART_InitStructure.USART_BaudRate = 115200; */
+   USART_InitStructure.USART_BaudRate = 3000000;
+   USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+   USART_InitStructure.USART_StopBits = USART_StopBits_1;
+   USART_InitStructure.USART_Parity = USART_Parity_No;
+   USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+   USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+   /* USART_InitStructure.USART_Mode = USART_Mode_Tx; */
+
+   USART_OverSampling8Cmd(USART1, ENABLE);
+
+   /* USART configuration */
+   USART_Init(USART1, &USART_InitStructure);
+
+   /* Enable the USARTx Interrupt */
+   NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
+   NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+   NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+   NVIC_Init(&NVIC_InitStructure);
+
+   /* Enable the interrupt for Receive Not Empty */
+   USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+
+   /* Enable USART */
+   USART_Cmd(USART1, ENABLE);
+
+   usart_one_initialized = 1;
+
+}
+
 
 /* ****************************************************************** */
 /* Pushbutton  Initialization                                         */
@@ -254,7 +329,7 @@ void init_spi(void)
    SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;
    SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-   SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_8;
+   SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
    SPI_InitStructure.SPI_CRCPolynomial = 7;
    SPI_Init(SPI3, &SPI_InitStructure);
@@ -415,6 +490,27 @@ void USART3_IRQHandler(void)
 
 }
 
+void USART1_IRQHandler(void)
+{
+   uint16_t tchar;
+
+   if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
+   {
+      /* Read one byte from the receive data register */
+      rx_buffer[rx_buffer_head] = (uint8_t)(USART_ReceiveData(USART1) & 0x7F);
+      rx_buffer_head++;
+      if(rx_buffer_head >= RX_BUFFER_SIZE)
+      {
+         rx_buffer_head = 0;
+      }
+      /* Echo what we just got! */
+      /* USART_SendData(USART3, tchar); */
+      /* usart_write_byte((uint8_t)tchar); */
+   }
+
+}
+
+
 
 /* ****************************************************************** */
 /* Pushbutton Handler                                                 */
@@ -445,15 +541,26 @@ void EXTI0_IRQHandler(void)
 /* ****************************************************************** */
 uint8_t usart_write_byte(uint8_t data)
 {
-   if(usart_initialized)
+   /* if(usart_three_initialized) */
+   /* { */
+   /*    /\* Make sure any previous write has completed. *\/ */
+   /*    while( !(USART3->SR & 0x00000040) ); */
+   /*    /\* Send the data. *\/ */
+   /*    /\* if((0x20 <= data)&&(data <= 0x7E)) *\/ */
+   /*    /\* { *\/ */
+   /*       USART_SendData(USART3, (uint16_t)data); */
+   /*    /\* } *\/ */
+   /* } */
+
+   if(usart_one_initialized)
    {
       /* Make sure any previous write has completed. */
-      while( !(USART3->SR & 0x00000040) );
+      while( !(USART1->SR & 0x00000040) );
       /* Send the data. */
-      if((0x20 <= data)&&(data <= 0x7E))
-      {
-         USART_SendData(USART3, (uint16_t)data);
-      }
+      /* if((0x20 <= data)&&(data <= 0x7E)) */
+      /* { */
+         USART_SendData(USART1, (uint16_t)data);
+      /* } */
    }
 
    return 0;
@@ -490,4 +597,18 @@ void blocking_wait_ms(uint32_t delay_ms)
 {
    ms_count_r = 0;
    while(ms_count_r < delay_ms);
+}
+
+
+void process_rx_buffer(void)
+{
+   while(rx_buffer_head != rx_buffer_tail)
+   {
+      usart_write_byte(rx_buffer[rx_buffer_tail]);
+      rx_buffer_tail++;
+      if(rx_buffer_tail >= RX_BUFFER_SIZE)
+      {
+         rx_buffer_tail = 0;
+      }
+   }
 }

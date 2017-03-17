@@ -17,7 +17,8 @@
 
 void init_gpio(void);
 void init_systick(void);
-void init_usart(void);
+void init_usart_three(void);
+void init_usart_one(void);
 void init_pushbutton(void);
 void init_analog_input(void);
 void init_tia(void);
@@ -25,6 +26,7 @@ void init_spi(void);
 void init_i2c(void);
 
 uint8_t usart_write_byte(uint8_t data);
+void process_rx_buffer(void);
 
 void spi_cs_enable(void);
 void spi_cs_disable(void);
