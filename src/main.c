@@ -26,6 +26,8 @@
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
+extern volatile uint8_t grab_frame;
+
 /**
  * @brief  Main program
  * @param  None
@@ -64,15 +66,23 @@ int main(void)
 
    non_blocking_wait_ms(185);
 
+   grab_frame = 3;
+
    while(1)
    {
-      lepton_transfer();
+
+      if(grab_frame == 1)
+      {
+         lepton_transfer();
+         grab_frame = 3;
+      }
+
       /* lepton_print_image_binary_background(); */
 
       process_rx_buffer();
 
       write_timestamps();
-      write_vospi();
+      /* write_vospi(); */
 
       /* send_gp_packets(); */
    }

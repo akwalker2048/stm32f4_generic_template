@@ -8,6 +8,8 @@
  */
 volatile uint8_t packet_send_mutex = 0;
 
+volatile uint8_t grab_frame = 0;
+
 #define TS_CIRC_BUFFER_SIZE 8
 volatile GenericPacket ts_circ_buffer[TS_CIRC_BUFFER_SIZE];
 volatile uint32_t ts_circ_buffer_head = 0;
@@ -313,7 +315,7 @@ void init_spi(void)
    GPIO_PinAFConfig(GPIOB, GPIO_PinSource5, GPIO_AF_SPI3);
 
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
    GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_DOWN;
 
@@ -331,7 +333,7 @@ void init_spi(void)
 
    /* SPI  Chip Select Configuration */
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
    GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_UP;
    GPIO_InitStructure.GPIO_Pin = SPI_PIN_CS_AL;
@@ -457,6 +459,22 @@ void SysTick_Handler(void)
 
    ii++;
 
+   /* if(ms_counter%(6*37) == 0) */
+   if(ms_counter%(250) == 0)
+   {
+      /* Kick off one frame grab. */
+      if(grab_frame == 2)
+      {
+         grab_frame = 1;
+      }
+
+      if(grab_frame == 3)
+      {
+         grab_frame = 2;
+      }
+
+   }
+
    if(ms_counter%100 == 0)
    {
 
@@ -465,7 +483,7 @@ void SysTick_Handler(void)
       {
          temp_head = 0;
       }
-      create_universal_timestamp(&ts_circ_buffer[temp_head], ms_counter);
+      create_universal_timestamp((GenericPacket *)&ts_circ_buffer[temp_head], ms_counter);
       ts_circ_buffer_head = temp_head;
 
       /* for(ii=0; ii<packet.packet_length; ii++) */
@@ -612,6 +630,7 @@ uint8_t usart_write_byte(uint8_t data)
 void spi_cs_enable(void)
 {
    GPIO_ResetBits(GPIOB, SPI_PIN_CS_AL);
+   blocking_wait_ms(1);
 }
 
 void spi_cs_disable(void)
