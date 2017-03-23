@@ -1,6 +1,10 @@
 #ifndef HARDWARE_STM32F407G_DISC1_H
 #define HARDWARE_STM32F407G_DISC1_H
 
+#include "generic_packet.h"
+#include "gp_receive.h"
+#include "gp_proj_thermal.h"
+#include "gp_proj_universal.h"
 
 /* Green  - D12 */
 #define LED_PIN_GREEN    GPIO_Pin_12
@@ -33,5 +37,15 @@ void spi_cs_disable(void);
 uint8_t spi_read_byte(void);
 
 void blocking_wait_ms(uint32_t delay_ms);
+void non_blocking_wait_ms(uint32_t delay_ms);
+
+/* uint8_t add_gp_to_circ_buffer(GenericPacket packet); */
+/* uint8_t send_gp_packets(void); */
+
+void write_timestamps(void);
+void write_vospi(void);
+
+GenericPacket * get_next_vospi_ptr(void);
+void increment_vospi_head(void);
 
 #endif

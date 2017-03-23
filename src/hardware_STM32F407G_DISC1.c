@@ -1,6 +1,24 @@
 #include "stm32f4xx_conf.h"
 #include "hardware_STM32F407G_DISC1.h"
 
+/* Global variable for handling USART so that whole packets are sent at a
+ * a time.  In the future, I need to just add a function that is in this
+ * file that controls all packet sending.  Maybe implement a circular
+ * packet buffer for sending.
+ */
+volatile uint8_t packet_send_mutex = 0;
+
+#define TS_CIRC_BUFFER_SIZE 8
+volatile GenericPacket ts_circ_buffer[TS_CIRC_BUFFER_SIZE];
+volatile uint32_t ts_circ_buffer_head = 0;
+volatile uint32_t ts_circ_buffer_tail = 0;
+
+#define VOSPI_CIRC_BUFFER_SIZE 128
+volatile GenericPacket vospi_circ_buffer[VOSPI_CIRC_BUFFER_SIZE];
+volatile uint32_t vospi_circ_buffer_head = 0;
+volatile uint32_t vospi_circ_buffer_tail = 0;
+
+
 /* Variables Global Within This File */
 uint8_t gpio_initialized = 0;
 uint8_t systick_initialized = 0;
@@ -329,7 +347,7 @@ void init_spi(void)
    SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;
    SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-   SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
+   SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;
    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
    SPI_InitStructure.SPI_CRCPolynomial = 7;
    SPI_Init(SPI3, &SPI_InitStructure);
@@ -429,6 +447,8 @@ void SysTick_Handler(void)
    static uint32_t ii = 0;
    uint16_t txbuf[2];
 
+   uint8_t temp_head;
+
    ms_counter++;
    ms_count_r++;
 
@@ -436,7 +456,29 @@ void SysTick_Handler(void)
    txbuf[1] = 'b';
 
    ii++;
-   if(ii%500 == 0)
+
+   if(ms_counter%100 == 0)
+   {
+
+      temp_head = ts_circ_buffer_head + 1;
+      if(temp_head >= TS_CIRC_BUFFER_SIZE)
+      {
+         temp_head = 0;
+      }
+      create_universal_timestamp(&ts_circ_buffer[temp_head], ms_counter);
+      ts_circ_buffer_head = temp_head;
+
+      /* for(ii=0; ii<packet.packet_length; ii++) */
+      /* { */
+      /*    usart_write_byte(packet.gp[ii]); */
+      /* } */
+      /* packet_send_mutex = 0; */
+
+   }
+
+
+
+   if(ms_counter%500 == 0)
    {
       if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET)
       {
@@ -454,7 +496,7 @@ void SysTick_Handler(void)
 
    }
 
-   /* if(ii%250 == 0) */
+   /* if(ms_counter%250 == 0) */
    /* { */
    /*    if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET) */
    /*    { */
@@ -600,15 +642,168 @@ void blocking_wait_ms(uint32_t delay_ms)
 }
 
 
+void non_blocking_wait_ms(uint32_t delay_ms)
+{
+   /* Need to implement this! */
+   /* ms_count_r = 0; */
+   /* while(ms_count_r < delay_ms); */
+}
+
 void process_rx_buffer(void)
 {
    while(rx_buffer_head != rx_buffer_tail)
    {
-      usart_write_byte(rx_buffer[rx_buffer_tail]);
+      /* usart_write_byte(rx_buffer[rx_buffer_tail]); */
       rx_buffer_tail++;
       if(rx_buffer_tail >= RX_BUFFER_SIZE)
       {
          rx_buffer_tail = 0;
       }
+   }
+}
+
+
+/* uint8_t add_gp_to_circ_buffer(GenericPacket packet) */
+/* { */
+/*    uint8_t retval; */
+/*    uint8_t temp_head; */
+/*    uint8_t ii; */
+
+/*    uint32_t prim; */
+
+/*    /\* Read PRIMASK register, check interrupt status before you disable them *\/ */
+/*    /\* Returns 0 if they are enabled, or non-zero if disabled *\/ */
+/*    prim = __get_PRIMASK(); */
+
+/*    /\* Disable interrupts *\/ */
+/*    __disable_irq(); */
+
+/*    while(packet_send_mutex != 0); */
+/*    packet_send_mutex = 1; */
+/*    temp_head = gp_circ_buffer_head + 1; */
+/*    if(temp_head >= GP_CIRC_BUFFER_SIZE) */
+/*    { */
+/*       temp_head = 0; */
+/*    } */
+
+/*    gp_circ_buffer[temp_head].data_index = 0; */
+/*    gp_circ_buffer[temp_head].packet_length = packet.packet_length; */
+/*    gp_circ_buffer[temp_head].packet_error = packet.packet_error; */
+/*    gp_circ_buffer[temp_head].gp_state = packet.gp_state; */
+/*    for(ii=0; ii<packet.packet_length; ii++) */
+/*    { */
+/*       gp_circ_buffer[temp_head].gp[ii] = packet.gp[ii]; */
+/*    } */
+
+
+/*    /\* retval = gp_copy_packet(packet, &(gp_circ_buffer[temp_head])); *\/ */
+/*    /\* if(retval != GP_SUCCESS) *\/ */
+/*    /\* { *\/ */
+/*    /\*    GPIO_SetBits(GPIOD, LED_PIN_RED); *\/ */
+/*    /\*    while(1); *\/ */
+/*    /\*    return retval; *\/ */
+/*    /\* } *\/ */
+/*    gp_circ_buffer_head = temp_head; */
+/*    packet_send_mutex = 0; */
+
+/*    /\* Enable interrupts back *\/ */
+/*    if (!prim) { */
+/*       __enable_irq(); */
+/*    } */
+
+
+/*    return GP_SUCCESS; */
+
+/* } */
+
+
+/* uint8_t send_gp_packets(void) */
+/* { */
+/*    GenericPacket *gp_ptr; */
+/*    uint8_t ii; */
+
+/*    while(gp_circ_buffer_head != gp_circ_buffer_tail) */
+/*    { */
+/*       gp_circ_buffer_tail = gp_circ_buffer_tail + 1; */
+/*       if(gp_circ_buffer_tail >= GP_CIRC_BUFFER_SIZE) */
+/*       { */
+/*          gp_circ_buffer_tail = 0; */
+/*       } */
+/*       gp_ptr = &(gp_circ_buffer[gp_circ_buffer_tail]); */
+
+/*       /\* while(packet_send_mutex != 0); *\/ */
+/*       /\* packet_send_mutex = 1; *\/ */
+/*       /\* for(ii=0; ii<gp_ptr->packet_length; ii++) *\/ */
+/*       /\* { *\/ */
+/*       /\*    usart_write_byte(gp_ptr->gp[ii]); *\/ */
+/*       /\* } *\/ */
+/*       /\* packet_send_mutex = 0; *\/ */
+
+/*    } */
+/* } */
+
+void write_timestamps(void)
+{
+   uint8_t ii;
+
+   while(ts_circ_buffer_tail != ts_circ_buffer_head)
+   {
+      ts_circ_buffer_tail = ts_circ_buffer_tail + 1;
+      if(ts_circ_buffer_tail >= TS_CIRC_BUFFER_SIZE)
+      {
+         ts_circ_buffer_tail = 0;
+      }
+
+      for(ii=0; ii<ts_circ_buffer[ts_circ_buffer_tail].packet_length; ii++)
+      {
+         usart_write_byte(ts_circ_buffer[ts_circ_buffer_tail].gp[ii]);
+      }
+   }
+}
+
+
+
+void write_vospi(void)
+{
+   uint8_t ii;
+
+   while(vospi_circ_buffer_tail != vospi_circ_buffer_head)
+   {
+      vospi_circ_buffer_tail = vospi_circ_buffer_tail + 1;
+      if(vospi_circ_buffer_tail >= VOSPI_CIRC_BUFFER_SIZE)
+      {
+         vospi_circ_buffer_tail = 0;
+      }
+
+      for(ii=0; ii<vospi_circ_buffer[vospi_circ_buffer_tail].packet_length; ii++)
+      {
+         usart_write_byte(vospi_circ_buffer[vospi_circ_buffer_tail].gp[ii]);
+      }
+   }
+}
+
+
+GenericPacket * get_next_vospi_ptr(void)
+{
+   GenericPacket *ptr;
+   uint32_t temp_head;
+
+   temp_head = vospi_circ_buffer_head + 1;
+   if(temp_head >= VOSPI_CIRC_BUFFER_SIZE)
+   {
+      temp_head = 0;
+   }
+   ptr = &(vospi_circ_buffer[temp_head]);
+
+   return ptr;
+
+}
+
+void increment_vospi_head(void)
+{
+   vospi_circ_buffer_head = vospi_circ_buffer_head + 1;
+   if(vospi_circ_buffer_head >= VOSPI_CIRC_BUFFER_SIZE)
+   {
+      vospi_circ_buffer_head = 0;
    }
 }
