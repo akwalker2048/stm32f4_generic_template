@@ -460,7 +460,7 @@ void SysTick_Handler(void)
    ii++;
 
    /* if(ms_counter%(6*37) == 0) */
-   if(ms_counter%(250) == 0)
+   if(ms_counter%(185) == 0)
    {
       /* Kick off one frame grab. */
       if(grab_frame == 2)
