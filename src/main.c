@@ -18,7 +18,6 @@
 #include "hardware_STM32F407G_DISC1.h"
 #include "lepton_functions.h"
 
-
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -64,6 +63,7 @@ int main(void)
    /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
 
 
+
    non_blocking_wait_ms(185);
 
    grab_frame = 3;
@@ -83,6 +83,11 @@ int main(void)
 
       write_timestamps();
       /* write_vospi(); */
+
+
+      /* Just a test.  This will need to be a response to a request in the future. */
+      write_code_version();
+
 
       /* send_gp_packets(); */
    }

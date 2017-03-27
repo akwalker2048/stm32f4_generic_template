@@ -24,5 +24,9 @@ ST_STD_PERIPH_EVAL_INCLUDE = -I/home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.
 GENERIC_PACKET_SRC_DIR = ../stm32f4_generic_packet/src
 GENERIC_PACKET_INC_DIR = ../stm32f4_generic_packet/include
 
+
+#GIT Revision
+GIT_REVISION=$(shell ./git-revision.sh)
+
 #Hardware Specific Stuff
-LOCAL_CFLAGS = -D"STM32F40_41xxx" -D"USE_STDPERIPH_DRIVER" -D"HSE_VALUE=8000000"
+LOCAL_CFLAGS = -D"STM32F40_41xxx" -D"USE_STDPERIPH_DRIVER" -D"HSE_VALUE=8000000" -DGIT_REVISION='"$(GIT_REVISION)"'

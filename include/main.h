@@ -31,8 +31,16 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_conf.h"
+#include "generic_packet.h"
+#include "gp_proj_universal.h"
 
 /* Exported define -----------------------------------------------------------*/
+
+#ifndef GIT_REVISION
+#define GIT_REVISION "generic-stm32f4-DEADBEEF"
+#endif
+
+
 
 /* /\* Green  - D12 *\/ */
 /* #define LED_PIN_GREEN    GPIO_Pin_12 */

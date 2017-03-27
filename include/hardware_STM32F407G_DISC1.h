@@ -6,6 +6,11 @@
 #include "gp_proj_thermal.h"
 #include "gp_proj_universal.h"
 
+#ifndef GIT_REVISION
+#define GIT_REVISION "generic-stm32f4-DEADBEEF"
+#endif
+
+
 /* Green  - D12 */
 #define LED_PIN_GREEN    GPIO_Pin_12
 /* Orange - D13 */
@@ -44,6 +49,8 @@ void non_blocking_wait_ms(uint32_t delay_ms);
 
 void write_timestamps(void);
 void write_vospi(void);
+
+void write_code_version(void);
 
 GenericPacket * get_next_vospi_ptr(void);
 void increment_vospi_head(void);

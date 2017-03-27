@@ -259,7 +259,7 @@
 #define PLL_N      336
 /* SYSCLK = PLL_VCO / PLL_P */
 #define PLL_P      2
-#warning "PLL_N=336, PLL_P=2"
+/* #warning "PLL_N=336, PLL_P=2" */
 #endif /* STM32F40_41xxx */
 
 #if defined (STM32F427_437xx) || defined (STM32F429_439xx)
@@ -294,9 +294,9 @@
 
 #if defined (STM32F40_41xxx)
   uint32_t SystemCoreClock = 168000000;
-#warning "SystemCoreClock = 168000000"
+/* #warning "SystemCoreClock = 168000000" */
 #if (HSE_VALUE==8000000)
-#warning "HSE_VALUE = 8000000"
+/* #warning "HSE_VALUE = 8000000" */
 #endif
 #endif /* STM32F40_41xxx */
 

@@ -812,7 +812,7 @@ GenericPacket * get_next_vospi_ptr(void)
    {
       temp_head = 0;
    }
-   ptr = &(vospi_circ_buffer[temp_head]);
+   ptr = (GenericPacket *)&(vospi_circ_buffer[temp_head]);
 
    return ptr;
 
@@ -825,4 +825,20 @@ void increment_vospi_head(void)
    {
       vospi_circ_buffer_head = 0;
    }
+}
+
+
+void write_code_version(void)
+{
+   GenericPacket packet;
+   uint8_t ii;
+
+   if(create_universal_code_ver(&packet, GIT_REVISION) == GP_SUCCESS)
+   {
+      for(ii=0; ii<packet.packet_length; ii++)
+      {
+         usart_write_byte(packet.gp[ii]);
+      }
+   }
+
 }
