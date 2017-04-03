@@ -26,6 +26,7 @@
 /* Private functions ---------------------------------------------------------*/
 
 extern volatile uint8_t grab_frame;
+extern volatile uint8_t send_code_version;
 
 /**
  * @brief  Main program
@@ -43,7 +44,8 @@ int main(void)
    */
 
    init_gpio();
-   init_usart_one();
+   /* init_usart_one(); */
+   init_usart_one_dma();
    /* init_usart_three(); */
    init_pushbutton();
    init_spi();
@@ -86,8 +88,11 @@ int main(void)
 
 
       /* Just a test.  This will need to be a response to a request in the future. */
-      write_code_version();
-
+      if(send_code_version == 1)
+      {
+         write_code_version();
+         send_code_version = 0;
+      }
 
       /* send_gp_packets(); */
    }
