@@ -21,6 +21,10 @@ volatile GenericPacket vospi_circ_buffer[VOSPI_CIRC_BUFFER_SIZE];
 volatile uint32_t vospi_circ_buffer_head = 0;
 volatile uint32_t vospi_circ_buffer_tail = 0;
 
+#define OUTGOING_CIRC_BUFFER_SIZE 16
+volatile GenericPacket outgoing_circ_buffer[OUTGOING_CIRC_BUFFER_SIZE];
+volatile uint32_t outgoing_circ_buffer_head = 0;
+volatile uint32_t outgoing_circ_buffer_tail = 0;
 
 /* Variables Global Within This File */
 uint8_t gpio_initialized = 0;
@@ -35,14 +39,19 @@ uint8_t spi_initialized = 0;
 uint8_t i2c_initialized = 0;
 
 /* Circular Receive Buffer */
-#define RX_BUFFER_SIZE (GP_MAX_PACKET_LENGTH * 4)
+#define RX_BUFFER_SIZE (GP_MAX_PACKET_LENGTH * 16)
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 uint16_t rx_buffer_head = 0;
 uint16_t rx_buffer_tail = 0;
+/* GenericPacket receive_packet; */
 
 /* USART DMA Buffers */
+#define DMA_RX_BUFFER_SIZE (GP_MAX_PACKET_LENGTH * 4)
 uint8_t usart_dma_tx_buffer[GP_MAX_PACKET_LENGTH];
-uint8_t usart_dma_rx_buffer[GP_MAX_PACKET_LENGTH];
+uint8_t usart_dma_rx_buffer[DMA_RX_BUFFER_SIZE];
+uint16_t dma_rx_buffer_head = 0;
+uint16_t dma_rx_buffer_tail = 0;
+GenericPacket receive_packet;
 
 /* Free Running Coutner */
 volatile uint32_t ms_counter = 0;
@@ -231,6 +240,8 @@ void init_usart_one_dma(void)
    GPIO_InitTypeDef  GPIO_InitStructure;
    DMA_InitTypeDef  DMA_InitStructure;
 
+   uint8_t retval;
+
    /* Init USART Pins */
    /* USART1:
     *   TX -> B6
@@ -287,7 +298,8 @@ void init_usart_one_dma(void)
 
 
    /* Set up DMA Here!!!! */
-   DMA_InitStructure.DMA_BufferSize = GP_MAX_PACKET_LENGTH;
+   /* Configure TX DMA */
+   DMA_DeInit(DMA2_Stream7);
    DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable;
    DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
    DMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_Single;
@@ -299,16 +311,46 @@ void init_usart_one_dma(void)
    DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
    DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
    DMA_InitStructure.DMA_Priority = DMA_Priority_High;
-   /* Configure TX DMA */
+   DMA_InitStructure.DMA_BufferSize = GP_MAX_PACKET_LENGTH;
    DMA_InitStructure.DMA_Channel = DMA_Channel_4;
    DMA_InitStructure.DMA_DIR = DMA_DIR_MemoryToPeripheral;
    DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)usart_dma_tx_buffer;
    DMA_Init(DMA2_Stream7, &DMA_InitStructure);
    /* Configure RX DMA */
+   DMA_DeInit(DMA2_Stream5);
    DMA_InitStructure.DMA_Channel = DMA_Channel_4;
    DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory;
    DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)usart_dma_rx_buffer;
+   DMA_InitStructure.DMA_BufferSize = (uint16_t)sizeof(usart_dma_rx_buffer);
+   DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t) (&(USART1->DR));
+   DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+   DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+   DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+   DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+   DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
+   DMA_InitStructure.DMA_Priority = DMA_Priority_High;
+   DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Enable;
+   /* DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable; */
+   /* DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_Full; */
+   DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+   /* DMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_Single; */
+   DMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_INC4;
+   DMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
    DMA_Init(DMA2_Stream5, &DMA_InitStructure);
+   /* Enable the USART Rx DMA request */
+   USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);
+   /*   /\* Enable DMA Stream Half Transfer and Transfer Complete interrupt *\/ */
+   /*   DMA_ITConfig(DMA1_Stream2, DMA_IT_TC | DMA_IT_HT , ENABLE); */
+   /* Enable the DMA RX Stream */
+   DMA_Cmd(DMA2_Stream5, ENABLE);
+
+   retval = gp_receive_byte(0x00, GP_CONTROL_INITIALIZE, &receive_packet);
+
+   /* DMA_InitStructure.DMA_BufferSize = RX_BUFFER_SIZE; */
+   /* DMA_InitStructure.DMA_Channel = DMA_Channel_4; */
+   /* DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory; */
+   /* DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)usart_dma_rx_buffer; */
+   /* DMA_Init(DMA2_Stream5, &DMA_InitStructure); */
 
    /* Enable USART */
    USART_Cmd(USART1, ENABLE);
@@ -555,12 +597,61 @@ void SysTick_Handler(void)
 {
    static uint32_t ii = 0;
 
+   uint8_t retval;
+
    uint8_t temp_head;
+
+   /* char ustr[256]; */
+   /* uint8_t ustr_ii; */
+   /* GenericPacket gp; */
 
    ms_counter++;
    ms_count_r++;
 
    ii++;
+
+   /* Check USART DMA Receive Circular Buffer */
+   dma_rx_buffer_head = (DMA_RX_BUFFER_SIZE - DMA2_Stream5->NDTR);
+   /* ustr_ii = 0; */
+   while(dma_rx_buffer_tail != dma_rx_buffer_head)
+   {
+      /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
+
+      /* ustr[ustr_ii] = rx_buffer[rx_buffer_tail]; */
+      /* ustr_ii++; */
+
+      /* usart_write_dma(&usart_dma_rx_buffer[dma_rx_buffer_tail], 1); */
+
+      rx_buffer[rx_buffer_head] = usart_dma_rx_buffer[dma_rx_buffer_tail];
+      rx_buffer_head++;
+      if(rx_buffer_head >= RX_BUFFER_SIZE)
+      {
+         rx_buffer_head = 0;
+      }
+
+
+      /* retval = gp_receive_byte(usart_dma_rx_buffer[dma_rx_buffer_tail], GP_CONTROL_RUN, &receive_packet); */
+      /* if((retval == GP_CHECKSUM_MATCH)) */
+      /* { */
+      /*    /\* We got a valid packet.  Maybe just repeat it back for now? *\/ */
+      /*    retval = add_gp_to_outgoing(receive_packet); */
+      /* } */
+
+      dma_rx_buffer_tail++;
+      if(dma_rx_buffer_tail >= DMA_RX_BUFFER_SIZE)
+      {
+         dma_rx_buffer_tail = 0;
+      }
+   }
+   /* if(ustr_ii) */
+   /* { */
+   /*    /\* ustr[ustr_ii] = '\0'; *\/ */
+   /*    /\* retval = create_universal_str(&gp, ustr); *\/ */
+   /*    retval = create_universal_ack(&gp); */
+   /*    retval = add_gp_to_outgoing(gp); */
+   /* } */
+   /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
+
 
    /* if(ms_counter%(6*37) == 0) */
    if(ms_counter%(185) == 0)
@@ -586,7 +677,7 @@ void SysTick_Handler(void)
       {
          temp_head = 0;
       }
-      create_universal_timestamp((GenericPacket *)&ts_circ_buffer[temp_head], ms_counter);
+      /* create_universal_timestamp((GenericPacket *)&ts_circ_buffer[temp_head], ms_counter); */
       ts_circ_buffer_head = temp_head;
 
       /* for(ii=0; ii<packet.packet_length; ii++) */
@@ -803,15 +894,43 @@ void non_blocking_wait_ms(uint32_t delay_ms)
 
 void process_rx_buffer(void)
 {
+   uint8_t retval;
+   uint8_t temp[64];
+   uint8_t length;
+
+   length = 0;
    while(rx_buffer_head != rx_buffer_tail)
    {
-      /* usart_write_byte(rx_buffer[rx_buffer_tail]); */
+      GPIO_SetBits(GPIOD, LED_PIN_RED);
+
+
+      if(length < 64)
+      {
+         temp[length] = rx_buffer[rx_buffer_tail];
+         length++;
+      }
+
+      retval = gp_receive_byte(rx_buffer[rx_buffer_tail], GP_CONTROL_RUN, &receive_packet);
+      if((retval == GP_CHECKSUM_MATCH))
+      {
+         /* /\* We got a valid packet.  Maybe just repeat it back for now? *\/ */
+         /* retval = add_gp_to_outgoing(receive_packet); */
+      }
+
       rx_buffer_tail++;
       if(rx_buffer_tail >= RX_BUFFER_SIZE)
       {
          rx_buffer_tail = 0;
       }
+
+      GPIO_ResetBits(GPIOD, LED_PIN_RED);
+
    }
+   if(length)
+   {
+      usart_write_dma(temp, length);
+   }
+
 }
 
 
@@ -995,4 +1114,55 @@ void write_code_version(void)
          usart_write_dma((uint8_t *)packet.gp, packet.packet_length);
       }
    }
+}
+
+
+uint8_t add_gp_to_outgoing(GenericPacket packet)
+{
+   uint8_t retval;
+   uint32_t temp_head;
+
+   temp_head = outgoing_circ_buffer_head + 1;
+   if(temp_head >= OUTGOING_CIRC_BUFFER_SIZE)
+   {
+      temp_head = 0;
+   }
+   retval = gp_copy_packet(packet, (GenericPacket *)&(outgoing_circ_buffer[temp_head]));
+   if(retval != GP_SUCCESS)
+   {
+      return retval;
+   }
+   outgoing_circ_buffer_head = temp_head;
+
+   return GP_SUCCESS;
+
+}
+
+void write_outgoing(void)
+{
+
+   uint8_t ii;
+
+   while(outgoing_circ_buffer_tail != outgoing_circ_buffer_head)
+   {
+      outgoing_circ_buffer_tail = outgoing_circ_buffer_tail + 1;
+      if(outgoing_circ_buffer_tail >= OUTGOING_CIRC_BUFFER_SIZE)
+      {
+         outgoing_circ_buffer_tail = 0;
+      }
+
+      if(usart_one_initialized)
+      {
+         for(ii=0; ii<outgoing_circ_buffer[outgoing_circ_buffer_tail].packet_length; ii++)
+         {
+            usart_write_byte(outgoing_circ_buffer[outgoing_circ_buffer_tail].gp[ii]);
+         }
+      }
+      else if(usart_one_dma_initialized)
+      {
+         usart_write_dma((uint8_t *)outgoing_circ_buffer[outgoing_circ_buffer_tail].gp, outgoing_circ_buffer[outgoing_circ_buffer_tail].packet_length);
+      }
+   }
+
+
 }

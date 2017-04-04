@@ -59,4 +59,7 @@ void write_code_version(void);
 GenericPacket * get_next_vospi_ptr(void);
 void increment_vospi_head(void);
 
+uint8_t add_gp_to_outgoing(GenericPacket packet);
+void write_outgoing(void);
+
 #endif

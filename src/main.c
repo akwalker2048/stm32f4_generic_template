@@ -73,24 +73,25 @@ int main(void)
    while(1)
    {
 
-      if(grab_frame == 1)
-      {
-         lepton_transfer();
-         grab_frame = 3;
-      }
+      /* if(grab_frame == 1) */
+      /* { */
+      /*    lepton_transfer(); */
+      /*    grab_frame = 3; */
+      /* } */
 
       /* lepton_print_image_binary_background(); */
 
       process_rx_buffer();
 
-      write_timestamps();
-      /* write_vospi(); */
+      /* write_timestamps(); */
+      /* /\* write_vospi(); *\/ */
 
+      write_outgoing();
 
       /* Just a test.  This will need to be a response to a request in the future. */
       if(send_code_version == 1)
       {
-         write_code_version();
+         /* write_code_version(); */
          send_code_version = 0;
       }
 
