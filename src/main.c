@@ -18,6 +18,9 @@
 #include "hardware_STM32F407G_DISC1.h"
 #include "lepton_functions.h"
 
+#include "generic_packet.h"
+#include "gp_proj_analog.h"
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -43,6 +46,9 @@ int main(void)
      system_stm32f4xx.c file
    */
 
+   float vc14, vc15;
+   GenericPacket gp, gp_two;
+
    init_gpio();
    /* init_usart_one(); */
    init_usart_one_dma();
@@ -51,6 +57,7 @@ int main(void)
    init_spi();
    init_i2c();
    init_systick();
+   init_adc();
 
    GPIO_SetBits(GPIOD, LED_PIN_RED);
    non_blocking_wait_ms(1000);
@@ -73,26 +80,30 @@ int main(void)
    while(1)
    {
 
-      /* if(grab_frame == 1) */
-      /* { */
-      /*    lepton_transfer(); */
-      /*    grab_frame = 3; */
-      /* } */
-
-      /* lepton_print_image_binary_background(); */
+      if(grab_frame == 1)
+      {
+         lepton_transfer();
+         grab_frame = 3;
+      }
 
       process_rx_buffer();
 
-      /* write_timestamps(); */
-      /* /\* write_vospi(); *\/ */
+      write_timestamps();
 
       write_outgoing();
 
       /* Just a test.  This will need to be a response to a request in the future. */
       if(send_code_version == 1)
       {
-         /* write_code_version(); */
+         write_code_version();
          send_code_version = 0;
+
+         read_adc(&vc14, &vc15);
+         create_analog_voltage(&gp, ANALOG_VOLTAGE, vc14);
+         usart_write_dma(gp.gp, gp.packet_length);
+         create_analog_voltage(&gp_two, ANALOG_BATTERY_VOLTAGE, vc15);
+         usart_write_dma(gp_two.gp, gp_two.packet_length);
+
       }
 
       /* send_gp_packets(); */

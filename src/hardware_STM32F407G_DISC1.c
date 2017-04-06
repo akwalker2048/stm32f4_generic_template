@@ -22,8 +22,9 @@ volatile uint32_t vospi_circ_buffer_head = 0;
 volatile uint32_t vospi_circ_buffer_tail = 0;
 
 #define OUTGOING_CIRC_BUFFER_SIZE 16
-volatile GenericPacket outgoing_circ_buffer[OUTGOING_CIRC_BUFFER_SIZE];
+GenericPacket outgoing_circ_buffer[OUTGOING_CIRC_BUFFER_SIZE];
 volatile uint32_t outgoing_circ_buffer_head = 0;
+volatile uint32_t outgoing_circ_buffer_head_temp = 1;
 volatile uint32_t outgoing_circ_buffer_tail = 0;
 
 /* Variables Global Within This File */
@@ -34,6 +35,7 @@ uint8_t usart_one_dma_initialized = 0;
 uint8_t usart_three_initialized = 0;
 uint8_t pushbutton_initialized = 0;
 uint8_t analog_input_initialized = 0;
+uint8_t adc_initialized = 0;
 uint8_t tia_initialized = 0;
 uint8_t spi_initialized = 0;
 uint8_t i2c_initialized = 0;
@@ -344,7 +346,7 @@ void init_usart_one_dma(void)
    /* Enable the DMA RX Stream */
    DMA_Cmd(DMA2_Stream5, ENABLE);
 
-   retval = gp_receive_byte(0x00, GP_CONTROL_INITIALIZE, &receive_packet);
+   retval = gp_receive_byte(0x00, GP_CONTROL_INITIALIZE, &(outgoing_circ_buffer[outgoing_circ_buffer_head_temp]));
 
    /* DMA_InitStructure.DMA_BufferSize = RX_BUFFER_SIZE; */
    /* DMA_InitStructure.DMA_Channel = DMA_Channel_4; */
@@ -359,9 +361,68 @@ void init_usart_one_dma(void)
    usart_one_initialized = 0;
 }
 
+/* ****************************************************************** */
+/* ADC  Initialization                                         */
+/* ****************************************************************** */
+void init_adc(void)
+{
+   GPIO_InitTypeDef GPIO_InitStructure; //Variable used to setup the GPIO pins
+   DMA_InitTypeDef DMA_InitStructure; //Variable used to setup the DMA
+   ADC_InitTypeDef ADC_InitStructure; //Variable used to setup the ADC
+   ADC_CommonInitTypeDef ADC_CommonInitStructure;
 
+   //==Configure the systems clocks for the ADC and DMA==
+   //ADCCLK = PCLK2 / 4
+   /* RCC_ADCCLKConfig(RCC_PCLK2_Div8); //Defines the ADC clock divider.  This clock is derived from the APB2 clock (PCLK2).  The */
 
+   //ADCs are clocked by the clock of the high speed domian (APB2) dibivied by 2/4/6/8.  The
+   //frequency can never be bigger than 14MHz!!!!
 
+   /* //--Enable DMA1 clock-- */
+   /* RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE); */
+
+   //--Enable ADC1 and GPIOC--
+   RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+
+   //==Configure ADC pins (PC.04 -> Channel 14 and PC.05 -> Channel 15) as analog inputs==
+   GPIO_StructInit(&GPIO_InitStructure); // Reset init structure, if not it can cause issues...
+   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5;
+   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+   GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+   /* ADC Common Init */
+   ADC_CommonInitStructure.ADC_Mode = ADC_Mode_Independent;
+   ADC_CommonInitStructure.ADC_Prescaler = ADC_Prescaler_Div8;
+   ADC_CommonInitStructure.ADC_DMAAccessMode = ADC_DMAAccessMode_Disabled;
+   ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_12Cycles;
+   ADC_CommonInit(&ADC_CommonInitStructure);
+
+   //==Configure ADC1 - Channel 14 and Channel 15==
+   ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
+   ADC_InitStructure.ADC_ScanConvMode = DISABLE;
+   ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
+   ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_None;
+   ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T2_TRGO; /* Actually...a don't care... */
+   ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+   ADC_InitStructure.ADC_NbrOfConversion = 1;
+   ADC_Init(ADC1, &ADC_InitStructure); //Initialise ADC1
+
+   ADC_Cmd(ADC1, ENABLE); //Enable ADC1
+
+   //==Calibrate ADC1==
+
+   /* //Enable ADC1 reset calibaration register */
+   /* ADC_ResetCalibration(ADC1); */
+   /* while (ADC_GetResetCalibrationStatus(ADC1)); //Check the end of ADC1 reset calibration register */
+
+   /* //Start ADC1 calibaration */
+   /* ADC_StartCalibration(ADC1); */
+   /* while (ADC_GetCalibrationStatus(ADC1)); //Check the end of ADC1 calibration */
+
+   adc_initialized = 1;
+
+}
 
 
 /* ****************************************************************** */
@@ -601,10 +662,6 @@ void SysTick_Handler(void)
 
    uint8_t temp_head;
 
-   /* char ustr[256]; */
-   /* uint8_t ustr_ii; */
-   /* GenericPacket gp; */
-
    ms_counter++;
    ms_count_r++;
 
@@ -615,12 +672,6 @@ void SysTick_Handler(void)
    /* ustr_ii = 0; */
    while(dma_rx_buffer_tail != dma_rx_buffer_head)
    {
-      /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
-
-      /* ustr[ustr_ii] = rx_buffer[rx_buffer_tail]; */
-      /* ustr_ii++; */
-
-      /* usart_write_dma(&usart_dma_rx_buffer[dma_rx_buffer_tail], 1); */
 
       rx_buffer[rx_buffer_head] = usart_dma_rx_buffer[dma_rx_buffer_tail];
       rx_buffer_head++;
@@ -629,28 +680,12 @@ void SysTick_Handler(void)
          rx_buffer_head = 0;
       }
 
-
-      /* retval = gp_receive_byte(usart_dma_rx_buffer[dma_rx_buffer_tail], GP_CONTROL_RUN, &receive_packet); */
-      /* if((retval == GP_CHECKSUM_MATCH)) */
-      /* { */
-      /*    /\* We got a valid packet.  Maybe just repeat it back for now? *\/ */
-      /*    retval = add_gp_to_outgoing(receive_packet); */
-      /* } */
-
       dma_rx_buffer_tail++;
       if(dma_rx_buffer_tail >= DMA_RX_BUFFER_SIZE)
       {
          dma_rx_buffer_tail = 0;
       }
    }
-   /* if(ustr_ii) */
-   /* { */
-   /*    /\* ustr[ustr_ii] = '\0'; *\/ */
-   /*    /\* retval = create_universal_str(&gp, ustr); *\/ */
-   /*    retval = create_universal_ack(&gp); */
-   /*    retval = add_gp_to_outgoing(gp); */
-   /* } */
-   /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
 
 
    /* if(ms_counter%(6*37) == 0) */
@@ -677,14 +712,8 @@ void SysTick_Handler(void)
       {
          temp_head = 0;
       }
-      /* create_universal_timestamp((GenericPacket *)&ts_circ_buffer[temp_head], ms_counter); */
+      create_universal_timestamp((GenericPacket *)&ts_circ_buffer[temp_head], ms_counter);
       ts_circ_buffer_head = temp_head;
-
-      /* for(ii=0; ii<packet.packet_length; ii++) */
-      /* { */
-      /*    usart_write_byte(packet.gp[ii]); */
-      /* } */
-      /* packet_send_mutex = 0; */
 
    }
 
@@ -799,7 +828,7 @@ uint8_t usart_write_dma(uint8_t *data_ptr, uint32_t data_len)
       while (USART_GetFlagStatus(USART1, USART_FLAG_TC)==RESET);
       while (DMA_GetFlagStatus(DMA2_Stream7, DMA_FLAG_TCIF7)==RESET);
 
-      /* Enable the DMA */
+      /* Disable the DMA */
       DMA_Cmd(DMA2_Stream7, DISABLE);
       /* Disable USART DMA TX Requsts */
       USART_DMACmd(USART1, USART_DMAReq_Tx, DISABLE);
@@ -825,16 +854,6 @@ uint8_t usart_write_dma(uint8_t *data_ptr, uint32_t data_len)
 
 uint8_t usart_write_byte(uint8_t data)
 {
-   /* if(usart_three_initialized) */
-   /* { */
-   /*    /\* Make sure any previous write has completed. *\/ */
-   /*    while( !(USART3->SR & 0x00000040) ); */
-   /*    /\* Send the data. *\/ */
-   /*    /\* if((0x20 <= data)&&(data <= 0x7E)) *\/ */
-   /*    /\* { *\/ */
-   /*       USART_SendData(USART3, (uint16_t)data); */
-   /*    /\* } *\/ */
-   /* } */
 
    if(usart_one_initialized)
    {
@@ -897,11 +916,12 @@ void process_rx_buffer(void)
    uint8_t retval;
    uint8_t temp[64];
    uint8_t length;
+   static uint8_t light_on = 0;
 
    length = 0;
    while(rx_buffer_head != rx_buffer_tail)
    {
-      GPIO_SetBits(GPIOD, LED_PIN_RED);
+
 
 
       if(length < 64)
@@ -910,11 +930,27 @@ void process_rx_buffer(void)
          length++;
       }
 
-      retval = gp_receive_byte(rx_buffer[rx_buffer_tail], GP_CONTROL_RUN, &receive_packet);
+      retval = gp_receive_byte(rx_buffer[rx_buffer_tail], GP_CONTROL_RUN, &(outgoing_circ_buffer[outgoing_circ_buffer_head_temp]));
+
       if((retval == GP_CHECKSUM_MATCH))
       {
-         /* /\* We got a valid packet.  Maybe just repeat it back for now? *\/ */
-         /* retval = add_gp_to_outgoing(receive_packet); */
+         if(light_on == 1)
+         {
+            GPIO_ResetBits(GPIOD, LED_PIN_RED);
+            light_on = 0;
+         }
+         else
+         {
+            light_on = 1;
+            GPIO_SetBits(GPIOD, LED_PIN_RED);
+         }
+
+         outgoing_circ_buffer_head = outgoing_circ_buffer_head_temp;
+         outgoing_circ_buffer_head_temp++;
+         if(outgoing_circ_buffer_head_temp >= OUTGOING_CIRC_BUFFER_SIZE)
+         {
+            outgoing_circ_buffer_head_temp = 0;
+         }
       }
 
       rx_buffer_tail++;
@@ -923,13 +959,12 @@ void process_rx_buffer(void)
          rx_buffer_tail = 0;
       }
 
-      GPIO_ResetBits(GPIOD, LED_PIN_RED);
 
    }
-   if(length)
-   {
-      usart_write_dma(temp, length);
-   }
+   /* if(length) */
+   /* { */
+   /*    usart_write_dma(temp, length); */
+   /* } */
 
 }
 
@@ -1165,4 +1200,42 @@ void write_outgoing(void)
    }
 
 
+}
+
+
+
+uint8_t read_adc(float *vc14, float *vc15)
+{
+   uint16_t c14, c15;
+
+   /* VDD = 2.935 Volts on discovery card. */
+
+   if(adc_initialized)
+   {
+      ADC_RegularChannelConfig(ADC1, ADC_Channel_14, 1, ADC_SampleTime_28Cycles);
+      // Start the conversion
+      ADC_SoftwareStartConv(ADC1);
+      // Wait until conversion completion
+      while(ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET);
+      // Get the conversion value
+      c14 = ADC_GetConversionValue(ADC1);
+
+      ADC_RegularChannelConfig(ADC1, ADC_Channel_15, 1, ADC_SampleTime_28Cycles);
+      // Start the conversion
+      ADC_SoftwareStartConv(ADC1);
+      // Wait until conversion completion
+      while(ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET);
+      // Get the conversion value
+      c15 = ADC_GetConversionValue(ADC1);
+
+      *vc14 = ((float)c14 / (float)4096) * 2.935f;
+      *vc15 = ((float)c15 / (float)4096) * 2.935f;
+   }
+   else
+   {
+      *vc14 = -9.99;
+      *vc15 = -9.99;
+   }
+
+   return 0;
 }

@@ -29,6 +29,7 @@ void init_systick(void);
 void init_usart_three(void);
 void init_usart_one(void);
 void init_usart_one_dma(void);
+void init_adc(void);
 
 void init_pushbutton(void);
 void init_analog_input(void);
@@ -61,5 +62,7 @@ void increment_vospi_head(void);
 
 uint8_t add_gp_to_outgoing(GenericPacket packet);
 void write_outgoing(void);
+
+uint8_t read_adc(float *vc14, float *vc15);
 
 #endif
