@@ -23,6 +23,11 @@ int print_image_binary_state =-1;
 int print_image_binary_i;
 int print_image_binary_j;
 
+uint8_t lepton_phase_offset = 0;
+uint8_t lepton_image_timeout = 0;
+
+extern uint32_t ms_counter;
+
 void lepton_print_image_binary_background(void)
 {
 
@@ -93,6 +98,10 @@ void lepton_transfer(void)
 
    uint8_t retval;
 
+   GenericPacket thermal_packet;
+
+   static uint16_t image_num = 0;
+
    GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
 
    last_frame_number = -1;
@@ -129,171 +138,36 @@ void lepton_transfer(void)
       if(resets == 750)
       {
          ii = VOSPI_NUM_FRAMES_IN_IMAGE + 1;
+         lepton_phase_offset++;
+         lepton_image_timeout = 1;
       }
 
    }
    spi_cs_disable();
 
-
-
-   /* for(ii=0; ii<VOSPI_NUM_FRAMES_IN_IMAGE; ii++) */
-   /* { */
-   /*    spi_cs_enable(); */
-   /*    for(jj=0; jj<VOSPI_FRAME_SIZE; jj++) */
-   /*    { */
-   /*       frame[ii].data[jj] = spi_read_byte(); */
-   /*    } */
-   /*    spi_cs_disable(); */
-
-   /*    /\* Check if the frame is a discard frame and chuck. *\/ */
-   /*    if(((frame[ii].data[0] & 0x0F) == 0x0F)||(frame[ii].data[1] > VOSPI_NUM_FRAMES_IN_IMAGE)) */
-   /*    { */
-   /*       ii--; */
-   /*    } */
-   /*    else */
-   /*    { */
-   /*       frame_grabs++; */
-   /*    } */
-   /* } */
-
-
-
-   for(ii=0; ii<VOSPI_NUM_FRAMES_IN_IMAGE; ii++)
+   if(lepton_image_timeout == 0)
    {
-      vospi_ptr = get_next_vospi_ptr();
-      retval =  create_thermal_lepton_frame(vospi_ptr, &(frame[ii]));
-      increment_vospi_head();
-      write_vospi();
+      create_thermal_begin_lepton_image(&thermal_packet, image_num, ms_counter);
+      usart_write_dma(thermal_packet.gp, thermal_packet.packet_length);
+      for(ii=0; ii<VOSPI_NUM_FRAMES_IN_IMAGE; ii++)
+      {
+         vospi_ptr = get_next_vospi_ptr();
+         retval =  create_thermal_lepton_frame(vospi_ptr, &(frame[ii]));
+         increment_vospi_head();
+         write_vospi();
+      }
+      create_thermal_end_lepton_image(&thermal_packet);
+      usart_write_dma(thermal_packet.gp, thermal_packet.packet_length);
+      image_num++;
+   }
+   else
+   {
+      create_thermal_image_timeout(&thermal_packet);
+      usart_write_dma(thermal_packet.gp, thermal_packet.packet_length);
+      lepton_image_timeout = 0;
    }
 
 
-   /* Crappy idea!!!! */
-   /* for(ii=0; ii<180; ii++) */
-  /*  { */
-  /*     spi_cs_enable(); */
-  /*     for(jj=0; jj<VOSPI_FRAME_SIZE; jj++) */
-  /*     { */
-  /*        frame[ii].data[jj] = spi_read_byte(); */
-  /*     } */
-  /*     spi_cs_disable(); */
-
-  /*     if(((frame[ii].data[0] & 0x0F) == 0x0F)||(frame[ii].data[1] > VOSPI_NUM_FRAMES_IN_IMAGE)) */
-  /*     { */
-  /*        ii--; */
-  /*     } */
-  /*     else */
-  /*     { */
-  /*        vospi_ptr = get_next_vospi_ptr(); */
-  /*        retval =  create_thermal_lepton_frame(vospi_ptr, &(frame[ii])); */
-  /*        increment_vospi_head(); */
-  /*        write_vospi(); */
-  /*     } */
-  /*  } */
-
-
-
-   /* for(ii=0; ii<VOSPI_NUM_FRAMES_IN_IMAGE; ii++) */
-   /* { */
-   /*    vospi_ptr = get_next_vospi_ptr(); */
-   /*    retval =  create_thermal_lepton_frame(vospi_ptr, &(frame[ii])); */
-   /*    increment_vospi_head(); */
-   /*    write_vospi(); */
-   /* } */
-
-
-
-
-
-
-
-
-
-   /* if(retval == GP_SUCCESS) */
-   /* { */
-   /*    /\* retval = add_gp_to_circ_buffer(packet); *\/ */
-
-   /*    /\* while(packet_send_mutex != 0); *\/ */
-   /*    /\* packet_send_mutex = 1; *\/ */
-   /*    for(ii=0; ii<packet.packet_length; ii++) */
-   /*    { */
-   /*       usart_write_byte(packet.gp[ii]); */
-   /*    } */
-   /*    /\* packet_send_mutex = 0; *\/ */
-   /* } */
-
-
-   /* if(((lepton_frame_packet[0]&0xf) != 0x0f)) */
-   /* { */
-   /*    if(lepton_frame_packet[1] == 0  ) */
-   /*    { */
-   /*       if(last_crc != (lepton_frame_packet[3]<<8 | lepton_frame_packet[4])) */
-   /*       { */
-   /*          new_frame = 1; */
-   /*       } */
-   /*       last_crc = lepton_frame_packet[3]<<8 | lepton_frame_packet[4]; */
-   /*    } */
-   /*    frame_number = lepton_frame_packet[1]; */
-
-   /*    if(frame_number < 60 ) */
-   /*    { */
-   /*       lost_frame_counter = 0; */
-   /*       if(print_image_binary_state == -1) */
-   /*       { */
-   /*          for(i=0;i<80;i++) */
-   /*          { */
-   /*             lepton_image[frame_number][i] = (lepton_frame_packet[2*i+4] << 8 | lepton_frame_packet[2*i+5]); */
-   /*          } */
-   /*       } */
-   /*    } */
-   /*    else */
-   /*    { */
-   /*       lost_frame_counter++; */
-   /*    } */
-   /*    if( frame_number == 59) */
-   /*    { */
-   /*       frame_complete = 1; */
-   /*       last_frame_number = 0; */
-   /*    } */
-   /* } */
-   /* else */
-   /* { */
-   /*    if(last_frame_number ==0) */
-   /*    { */
-   /*    } */
-   /* } */
-
-   /* lost_frame_counter++; */
-   /* if(lost_frame_counter>100) */
-   /* { */
-   /*    need_resync = 1; */
-   /*    lost_frame_counter = 0; */
-
-   /* } */
-
-   /* if(need_resync) */
-   /* { */
-
-   /*    blocking_wait_ms(185); */
-   /*    need_resync = 0; */
-
-   /* } */
-
-
-   /* if(frame_complete) */
-   /* { */
-   /*    if(new_frame) */
-   /*    { */
-   /*       frame_counter++; */
-   /*       { */
-   /*          if(frame_counter%18 ==0) */
-   /*          { */
-   /*             print_image_binary_state = 0; */
-   /*          } */
-   /*       } */
-   /*       new_frame = 0; */
-   /*    } */
-   /*    frame_complete = 0; */
-   /* } */
 
 
    GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);

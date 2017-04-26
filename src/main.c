@@ -16,6 +16,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "hardware_STM32F407G_DISC1.h"
+#include "hardware_TB6612.h"
 #include "lepton_functions.h"
 
 #include "generic_packet.h"
@@ -52,17 +53,19 @@ int main(void)
    init_gpio();
    /* init_usart_one(); */
    init_usart_one_dma();
-   /* init_usart_three(); */
+   init_usart_three();
    init_pushbutton();
    init_spi();
    init_i2c();
    init_systick();
    init_adc();
 
+   TB6612_initialize();
+
    GPIO_SetBits(GPIOD, LED_PIN_RED);
-   non_blocking_wait_ms(1000);
+   blocking_wait_ms(1000);
    GPIO_ResetBits(GPIOD, LED_PIN_RED);
-   non_blocking_wait_ms(1000);
+   blocking_wait_ms(1000);
    /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
    /* blocking_wait_ms(1000); */
    /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
@@ -80,27 +83,29 @@ int main(void)
    while(1)
    {
 
-      if(grab_frame == 1)
-      {
-         lepton_transfer();
-         grab_frame = 3;
-      }
+      /* if(grab_frame == 1) */
+      /* { */
+      /*    lepton_transfer(); */
+      /*    grab_frame = 3; */
+      /* } */
 
       process_rx_buffer();
 
-      write_timestamps();
+      /* write_timestamps(); */
 
       write_outgoing();
+
+      process_usart3_buffer();
 
       /* Just a test.  This will need to be a response to a request in the future. */
       if(send_code_version == 1)
       {
-         write_code_version();
+         /* write_code_version(); */
          send_code_version = 0;
 
          read_adc(&vc14, &vc15);
-         create_analog_voltage(&gp, ANALOG_VOLTAGE, vc14);
-         usart_write_dma(gp.gp, gp.packet_length);
+         /* create_analog_voltage(&gp, ANALOG_VOLTAGE, vc14); */
+         /* usart_write_dma(gp.gp, gp.packet_length); */
          create_analog_voltage(&gp_two, ANALOG_BATTERY_VOLTAGE, vc15);
          usart_write_dma(gp_two.gp, gp_two.packet_length);
 

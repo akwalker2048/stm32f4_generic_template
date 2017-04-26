@@ -1,4 +1,4 @@
-SOURCES_PROJECT = main.c hardware_STM32F407G_DISC1.c stm32f4xx_it.c system_stm32f4xx.c lepton_functions.c generic_packet.c gp_receive.c gp_proj_universal.c gp_proj_thermal.c gp_proj_analog.c
+SOURCES_PROJECT = main.c hardware_STM32F407G_DISC1.c stm32f4xx_it.c system_stm32f4xx.c lepton_functions.c generic_packet.c gp_receive.c gp_proj_universal.c gp_proj_thermal.c gp_proj_analog.c gp_proj_sonar.c hardware_TB6612.c
 SOURCES_STD_PERIPH = misc.c stm32f4xx_rcc.c stm32f4xx_adc.c stm32f4xx_dac.c stm32f4xx_dma.c stm32f4xx_exti.c stm32f4xx_gpio.c stm32f4xx_tim.c stm32f4xx_usart.c stm32f4xx_syscfg.c stm32f4xx_spi.c stm32f4xx_i2c.c
 SOURCES_ASSEMBLY = startup_stm32f40_41xxx.s
 

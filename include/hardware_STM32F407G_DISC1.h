@@ -5,6 +5,7 @@
 #include "gp_receive.h"
 #include "gp_proj_thermal.h"
 #include "gp_proj_universal.h"
+#include "gp_proj_sonar.h"
 
 #ifndef GIT_REVISION
 #define GIT_REVISION "generic-stm32f4-DEADBEEF"
@@ -40,6 +41,8 @@ void init_i2c(void);
 uint8_t usart_write_byte(uint8_t data);
 uint8_t usart_write_dma(uint8_t *data_ptr, uint32_t data_len);
 
+uint8_t usart_three_write_byte(uint8_t data);
+
 void process_rx_buffer(void);
 
 void spi_cs_enable(void);
@@ -60,9 +63,11 @@ void write_code_version(void);
 GenericPacket * get_next_vospi_ptr(void);
 void increment_vospi_head(void);
 
-uint8_t add_gp_to_outgoing(GenericPacket packet);
+/* uint8_t add_gp_to_outgoing(GenericPacket packet); */
 void write_outgoing(void);
 
 uint8_t read_adc(float *vc14, float *vc15);
+
+void process_usart3_buffer(void);
 
 #endif

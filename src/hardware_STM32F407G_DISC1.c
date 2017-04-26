@@ -1,5 +1,6 @@
 #include "stm32f4xx_conf.h"
 #include "hardware_STM32F407G_DISC1.h"
+#include "hardware_TB6612.h"
 
 /* Global variable for handling USART so that whole packets are sent at a
  * a time.  In the future, I need to just add a function that is in this
@@ -10,6 +11,14 @@ volatile uint8_t packet_send_mutex = 0;
 
 volatile uint8_t grab_frame = 0;
 volatile uint8_t send_code_version = 0;
+
+#define USART3_CIRC_BUFFER_SIZE 256
+volatile uint8_t usart3_circ_buffer[USART3_CIRC_BUFFER_SIZE];
+volatile uint8_t usart3_circ_buffer_head = 0;
+volatile uint8_t usart3_circ_buffer_tail = 0;
+
+volatile uint8_t sonar_index = 0;
+volatile uint8_t sonar_data[4];
 
 #define TS_CIRC_BUFFER_SIZE 8
 volatile GenericPacket ts_circ_buffer[TS_CIRC_BUFFER_SIZE];
@@ -138,7 +147,7 @@ void init_usart_three(void)
    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
 
    /* USART_InitStructure.USART_BaudRate = 115200; */
-   USART_InitStructure.USART_BaudRate = 115200;
+   USART_InitStructure.USART_BaudRate = 9600;
    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
    USART_InitStructure.USART_StopBits = USART_StopBits_1;
    USART_InitStructure.USART_Parity = USART_Parity_No;
@@ -165,6 +174,34 @@ void init_usart_three(void)
    USART_Cmd(USART3, ENABLE);
 
    usart_three_initialized = 1;
+
+   /* /\* AT+BAUD8 -> Change to 115200 *\/ */
+   /* usart_three_write_byte('A'); */
+   /* usart_three_write_byte('T'); */
+   /* usart_three_write_byte('+'); */
+   /* usart_three_write_byte('B'); */
+   /* usart_three_write_byte('A'); */
+   /* usart_three_write_byte('U'); */
+   /* usart_three_write_byte('D'); */
+   /* usart_three_write_byte('8'); */
+
+   /*  /\* /\\* AT+BAUD8 -> Change to 115200 *\\/ *\/ */
+   /* usart_three_write_byte('A'); */
+   /* usart_three_write_byte('T'); */
+   /* usart_three_write_byte('+'); */
+   /* usart_three_write_byte('B'); */
+   /* usart_three_write_byte('A'); */
+   /* usart_three_write_byte('U'); */
+   /* usart_three_write_byte('D'); */
+   /* usart_three_write_byte('8'); */
+
+   /* /\* Reconfigure things! *\/ */
+   /* usart_three_initialized = 0; */
+   /* USART_Cmd(USART3, DISABLE); */
+   /* USART_InitStructure.USART_BaudRate = 115200; */
+   /* USART_Init(USART3, &USART_InitStructure); */
+   /* USART_Cmd(USART3, ENABLE); */
+   /* usart_three_initialized = 1; */
 
 }
 
@@ -371,25 +408,17 @@ void init_adc(void)
    ADC_InitTypeDef ADC_InitStructure; //Variable used to setup the ADC
    ADC_CommonInitTypeDef ADC_CommonInitStructure;
 
-   //==Configure the systems clocks for the ADC and DMA==
-   //ADCCLK = PCLK2 / 4
-   /* RCC_ADCCLKConfig(RCC_PCLK2_Div8); //Defines the ADC clock divider.  This clock is derived from the APB2 clock (PCLK2).  The */
-
-   //ADCs are clocked by the clock of the high speed domian (APB2) dibivied by 2/4/6/8.  The
-   //frequency can never be bigger than 14MHz!!!!
-
-   /* //--Enable DMA1 clock-- */
-   /* RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE); */
-
-   //--Enable ADC1 and GPIOC--
    RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 
-   //==Configure ADC pins (PC.04 -> Channel 14 and PC.05 -> Channel 15) as analog inputs==
-   GPIO_StructInit(&GPIO_InitStructure); // Reset init structure, if not it can cause issues...
+   GPIO_StructInit(&GPIO_InitStructure);
    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5;
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
    GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+   /* I think you can also hook up the battery voltage internally to the ADC. I
+      need to look into that and add the capability here.
+   */
 
    /* ADC Common Init */
    ADC_CommonInitStructure.ADC_Mode = ADC_Mode_Independent;
@@ -398,7 +427,7 @@ void init_adc(void)
    ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_12Cycles;
    ADC_CommonInit(&ADC_CommonInitStructure);
 
-   //==Configure ADC1 - Channel 14 and Channel 15==
+   /* Init ADC1 Specific Stuff */
    ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
    ADC_InitStructure.ADC_ScanConvMode = DISABLE;
    ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
@@ -410,15 +439,7 @@ void init_adc(void)
 
    ADC_Cmd(ADC1, ENABLE); //Enable ADC1
 
-   //==Calibrate ADC1==
-
-   /* //Enable ADC1 reset calibaration register */
-   /* ADC_ResetCalibration(ADC1); */
-   /* while (ADC_GetResetCalibrationStatus(ADC1)); //Check the end of ADC1 reset calibration register */
-
-   /* //Start ADC1 calibaration */
-   /* ADC_StartCalibration(ADC1); */
-   /* while (ADC_GetCalibrationStatus(ADC1)); //Check the end of ADC1 calibration */
+   /* Need to calibrate the ADC??? */
 
    adc_initialized = 1;
 
@@ -662,6 +683,10 @@ void SysTick_Handler(void)
 
    uint8_t temp_head;
 
+   extern uint8_t lepton_phase_offset;
+
+   static float duty = -1.0f;
+
    ms_counter++;
    ms_count_r++;
 
@@ -688,8 +713,8 @@ void SysTick_Handler(void)
    }
 
 
-   /* if(ms_counter%(6*37) == 0) */
-   if(ms_counter%(185) == 0)
+   /* if(ms_counter%(2000) == 0) */
+   if((ms_counter + lepton_phase_offset)%(185) == 0)
    {
       /* Kick off one frame grab. */
       if(grab_frame == 2)
@@ -701,6 +726,18 @@ void SysTick_Handler(void)
       {
          grab_frame = 2;
       }
+
+   }
+
+
+   if(ms_counter%100 == 0)
+   {
+      duty = duty + 0.05f;
+      if(duty >= 1.0f)
+      {
+         duty = -1.0f;
+      }
+      TB6612_set_duty(duty);
 
    }
 
@@ -719,7 +756,7 @@ void SysTick_Handler(void)
 
 
 
-   if(ms_counter%500 == 0)
+   if(ms_counter%50 == 0)
    {
 
       send_code_version = 1;
@@ -750,15 +787,27 @@ void SysTick_Handler(void)
 void USART3_IRQHandler(void)
 {
    uint16_t tchar;
+   uint8_t temp_head;
 
    if(USART_GetITStatus(USART3, USART_IT_RXNE) != RESET)
    {
       /* Read one byte from the receive data register */
       tchar = (USART_ReceiveData(USART3) & 0x7F);
 
+      /* Just drop the byte in a circular buffer and deal with it later. */
+      temp_head = usart3_circ_buffer_head + 1;
+      if(temp_head >= USART3_CIRC_BUFFER_SIZE)
+      {
+         temp_head = 0;
+      }
+      usart3_circ_buffer[temp_head] = (uint8_t)tchar;
+      /* usart3_circ_buffer[temp_head] = ~usart3_circ_buffer[temp_head]; */
+      usart3_circ_buffer_head = temp_head;
+
+
       /* Echo what we just got! */
       /* USART_SendData(USART3, tchar); */
-      usart_write_byte((uint8_t)tchar);
+      /* usart_write_byte((uint8_t)tchar); */
    }
 
 }
@@ -868,6 +917,24 @@ uint8_t usart_write_byte(uint8_t data)
 
    return 0;
 }
+
+uint8_t usart_three_write_byte(uint8_t data)
+{
+
+   if(usart_three_initialized)
+   {
+      /* Make sure any previous write has completed. */
+      while( !(USART3->SR & 0x00000040) );
+      /* Send the data. */
+      /* if((0x20 <= data)&&(data <= 0x7E)) */
+      /* { */
+      USART_SendData(USART3, (uint16_t)data);
+      /* } */
+   }
+
+   return 0;
+}
+
 
 
 void spi_cs_enable(void)
@@ -1152,26 +1219,26 @@ void write_code_version(void)
 }
 
 
-uint8_t add_gp_to_outgoing(GenericPacket packet)
-{
-   uint8_t retval;
-   uint32_t temp_head;
+/* uint8_t add_gp_to_outgoing(GenericPacket packet) */
+/* { */
+/*    uint8_t retval; */
+/*    uint32_t temp_head; */
 
-   temp_head = outgoing_circ_buffer_head + 1;
-   if(temp_head >= OUTGOING_CIRC_BUFFER_SIZE)
-   {
-      temp_head = 0;
-   }
-   retval = gp_copy_packet(packet, (GenericPacket *)&(outgoing_circ_buffer[temp_head]));
-   if(retval != GP_SUCCESS)
-   {
-      return retval;
-   }
-   outgoing_circ_buffer_head = temp_head;
+/*    temp_head = outgoing_circ_buffer_head + 1; */
+/*    if(temp_head >= OUTGOING_CIRC_BUFFER_SIZE) */
+/*    { */
+/*       temp_head = 0; */
+/*    } */
+/*    retval = gp_copy_packet(packet, (GenericPacket *)&(outgoing_circ_buffer[temp_head])); */
+/*    if(retval != GP_SUCCESS) */
+/*    { */
+/*       return retval; */
+/*    } */
+/*    outgoing_circ_buffer_head = temp_head; */
 
-   return GP_SUCCESS;
+/*    return GP_SUCCESS; */
 
-}
+/* } */
 
 void write_outgoing(void)
 {
@@ -1238,4 +1305,75 @@ uint8_t read_adc(float *vc14, float *vc15)
    }
 
    return 0;
+}
+
+
+void process_usart3_buffer(void)
+{
+   GenericPacket packet;
+   char tchar[2];
+
+   /* Debug Sonar Packet! */
+   /* sonar_data[0] = 0x31; */
+   /* sonar_data[1] = 0x32; */
+   /* sonar_data[2] = 0x33; */
+   /* sonar_data[3] = 0; */
+   /* create_sonar_maxbot_serial(&packet, (char *)sonar_data); */
+   /* usart_write_dma(packet.gp, packet.packet_length); */
+
+   while(usart3_circ_buffer_tail != usart3_circ_buffer_head)
+   {
+      if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_RED) == Bit_SET)
+      {
+         GPIO_ResetBits(GPIOD, LED_PIN_RED);
+      }
+      else
+      {
+         GPIO_SetBits(GPIOD, LED_PIN_RED);
+      }
+
+      usart3_circ_buffer_tail++;
+      if(usart3_circ_buffer_tail >= USART3_CIRC_BUFFER_SIZE)
+      {
+         usart3_circ_buffer_tail = 0;
+      }
+
+      /* Temp Debug */
+      tchar[0] = usart3_circ_buffer[usart3_circ_buffer_tail];
+      tchar[1] = 0;
+      create_universal_str(&packet, tchar);
+      usart_write_dma(packet.gp, packet.packet_length);
+
+      switch(usart3_circ_buffer[usart3_circ_buffer_tail])
+      {
+         case 0x52:
+            /* This is an R!  The next byte will be sonar data. */
+            sonar_index = 0;
+            break;
+         case 0x0D:
+            /* This is a Carriage Return!  This ends this set of sonar data. */
+            sonar_index = 3;
+            sonar_data[sonar_index] = 0;
+            create_sonar_maxbot_serial(&packet, (char *)sonar_data);
+            usart_write_dma(packet.gp, packet.packet_length);
+            sonar_index = 0;
+            break;
+         default:
+            /* Add characters to the next packet! */
+            if(sonar_index < 4)
+            {
+               sonar_data[sonar_index] = usart3_circ_buffer[usart3_circ_buffer_tail];
+               sonar_index++;
+            }
+            else
+            {
+               /* sonar_data[3] = 0; */
+               /* create_sonar_maxbot_serial(&packet, (char *)sonar_data); */
+               /* usart_write_dma(packet.gp, packet.packet_length); */
+            }
+            break;
+      }
+
+   }
+
 }
