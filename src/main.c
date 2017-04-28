@@ -17,10 +17,15 @@
 #include "main.h"
 #include "hardware_STM32F407G_DISC1.h"
 #include "hardware_TB6612.h"
+#include "quad_encoder.h"
 #include "lepton_functions.h"
 
+
 #include "generic_packet.h"
+#include "gp_proj_motor.h"
 #include "gp_proj_analog.h"
+#include "gp_proj_universal.h"
+
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -48,18 +53,22 @@ int main(void)
    */
 
    float vc14, vc15;
-   GenericPacket gp, gp_two;
+   GenericPacket gp, gp_two, gp_pos, gp_pos_rad;
+
+   uint32_t pos_count;
+   float pos_rad;
 
    init_gpio();
    /* init_usart_one(); */
    init_usart_one_dma();
    init_usart_three();
    init_pushbutton();
-   init_spi();
+   /* init_spi(); */
    init_i2c();
    init_systick();
    init_adc();
 
+   quad_encoder_init();
    TB6612_initialize();
 
    GPIO_SetBits(GPIOD, LED_PIN_RED);
@@ -97,9 +106,14 @@ int main(void)
 
       process_usart3_buffer();
 
+
+
+
+
       /* Just a test.  This will need to be a response to a request in the future. */
       if(send_code_version == 1)
       {
+
          /* write_code_version(); */
          send_code_version = 0;
 
@@ -108,6 +122,14 @@ int main(void)
          /* usart_write_dma(gp.gp, gp.packet_length); */
          create_analog_voltage(&gp_two, ANALOG_BATTERY_VOLTAGE, vc15);
          usart_write_dma(gp_two.gp, gp_two.packet_length);
+
+         /* quad_encoder_read_position(&pos_count); */
+         /* pos_rad = 6.28318530718f * (float)pos_count / (64.0f * 4.0f); */
+         /* create_universal_word(&gp_pos, pos_count); */
+         /* usart_write_dma(gp_pos.gp, gp_pos.packet_length); */
+
+         /* create_motor_resp_position(&gp_pos_rad, pos_rad); */
+         /* usart_write_dma(gp_pos_rad.gp, gp_pos_rad.packet_length); */
 
       }
 
