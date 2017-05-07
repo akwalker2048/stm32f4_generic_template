@@ -251,7 +251,8 @@
 
 /************************* PLL Parameters *************************************/
 /* PLL_VCO = (HSE_VALUE or HSI_VALUE / PLL_M) * PLL_N */
-#define PLL_M      25
+/* #define PLL_M      25 */  /* Resutls in 53,760,000 Hz for an 8 MHz XTAL */
+#define PLL_M      8  /* Puts us back at 168,000,000 Hz for full speed on the card... */
 /* USB OTG FS, SDIO and RNG Clock =  PLL_VCO / PLLQ */
 #define PLL_Q      7
 
@@ -354,6 +355,9 @@ void SystemInit(void)
 
   /* Reset HSEON, CSSON and PLLON bits */
   RCC->CR &= (uint32_t)0xFEF6FFFF;
+
+  /* Reset PLLCFGR register */
+  RCC->PLLCFGR = 0x24003010;
 
   /* Reset PLLCFGR register */
   RCC->PLLCFGR = 0x24003010;
@@ -571,7 +575,11 @@ static void SetSysClock(void)
   else
   { /* If HSE fails to start-up, the application will have wrong clock
          configuration. User can add here some code to deal with this error */
+     while(1);
   }
+
+  /* SystemCoreClockUpdate(); */
+
 
 }
 

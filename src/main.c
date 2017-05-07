@@ -14,10 +14,15 @@
 */
 
 /* Includes ------------------------------------------------------------------*/
+#include "stm32f4xx.h"
+#include "system_stm32f4xx.h"
+
 #include "main.h"
 #include "hardware_STM32F407G_DISC1.h"
 #include "hardware_TB6612.h"
 #include "quad_encoder.h"
+#include "motor_control.h"
+#include "tilt_motor_control.h"
 #include "lepton_functions.h"
 
 
@@ -58,6 +63,8 @@ int main(void)
    uint32_t pos_count;
    float pos_rad;
 
+   SystemCoreClockUpdate();
+
    init_gpio();
    /* init_usart_one(); */
    init_usart_one_dma();
@@ -70,6 +77,7 @@ int main(void)
 
    quad_encoder_init();
    TB6612_initialize();
+   /* tilt_motor_init_flag(); */
 
    GPIO_SetBits(GPIOD, LED_PIN_RED);
    blocking_wait_ms(1000);
@@ -86,6 +94,24 @@ int main(void)
 
 
    non_blocking_wait_ms(185);
+
+
+   create_universal_word(&gp, SystemCoreClock);
+   usart_write_dma(gp.gp, gp.packet_length);
+   blocking_wait_ms(100);
+   create_universal_word(&gp, HSE_VALUE);
+   usart_write_dma(gp.gp, gp.packet_length);
+   blocking_wait_ms(100);
+   /* create_universal_word(&gp, PLL_M); */
+   /* usart_write_dma(gp.gp, gp.packet_length); */
+   /* blocking_wait_ms(100); */
+   /* create_universal_word(&gp, PLL_N); */
+   /* usart_write_dma(gp.gp, gp.packet_length); */
+   /* blocking_wait_ms(100); */
+   /* create_universal_word(&gp, PLL_P); */
+   /* usart_write_dma(gp.gp, gp.packet_length); */
+
+
 
    grab_frame = 3;
 
@@ -109,7 +135,6 @@ int main(void)
 
 
 
-
       /* Just a test.  This will need to be a response to a request in the future. */
       if(send_code_version == 1)
       {
@@ -117,16 +142,16 @@ int main(void)
          /* write_code_version(); */
          send_code_version = 0;
 
-         read_adc(&vc14, &vc15);
-         /* create_analog_voltage(&gp, ANALOG_VOLTAGE, vc14); */
-         /* usart_write_dma(gp.gp, gp.packet_length); */
-         create_analog_voltage(&gp_two, ANALOG_BATTERY_VOLTAGE, vc15);
-         usart_write_dma(gp_two.gp, gp_two.packet_length);
+         /* read_adc(&vc14, &vc15); */
+         /* /\* create_analog_voltage(&gp, ANALOG_VOLTAGE, vc14); *\/ */
+         /* /\* usart_write_dma(gp.gp, gp.packet_length); *\/ */
+         /* create_analog_voltage(&gp_two, ANALOG_BATTERY_VOLTAGE, vc15); */
+         /* usart_write_dma(gp_two.gp, gp_two.packet_length); */
 
-         /* quad_encoder_read_position(&pos_count); */
-         /* pos_rad = 6.28318530718f * (float)pos_count / (64.0f * 4.0f); */
-         /* create_universal_word(&gp_pos, pos_count); */
-         /* usart_write_dma(gp_pos.gp, gp_pos.packet_length); */
+         quad_encoder_read_position(&pos_count);
+         pos_rad = 6.28318530718f * (float)pos_count / (64.0f * 4.0f);
+         create_universal_word(&gp_pos, pos_count);
+         usart_write_dma(gp_pos.gp, gp_pos.packet_length);
 
          /* create_motor_resp_position(&gp_pos_rad, pos_rad); */
          /* usart_write_dma(gp_pos_rad.gp, gp_pos_rad.packet_length); */

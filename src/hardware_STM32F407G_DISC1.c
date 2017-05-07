@@ -1,6 +1,8 @@
 #include "stm32f4xx_conf.h"
 #include "hardware_STM32F407G_DISC1.h"
 #include "hardware_TB6612.h"
+#include "tilt_motor_control.h"
+#include "quad_encoder.h"
 
 /* Global variable for handling USART so that whole packets are sent at a
  * a time.  In the future, I need to just add a function that is in this
@@ -472,7 +474,7 @@ void init_pushbutton(void)
    /* Configure EXTI Line0 */
    EXTI_InitStructure.EXTI_Line = EXTI_Line0;
    EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-   EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
+   EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
    EXTI_InitStructure.EXTI_LineCmd = ENABLE;
    EXTI_Init(&EXTI_InitStructure);
 
@@ -679,6 +681,8 @@ void SysTick_Handler(void)
 {
    static uint32_t ii = 0;
 
+   static uint8_t up = 1;
+
    uint8_t retval;
 
    uint8_t temp_head;
@@ -686,6 +690,8 @@ void SysTick_Handler(void)
    extern uint8_t lepton_phase_offset;
 
    static float duty = -1.0f;
+
+   float current_tilt_position;
 
    ms_counter++;
    ms_count_r++;
@@ -730,16 +736,39 @@ void SysTick_Handler(void)
    }
 
 
-   if(ms_counter%100 == 0)
+   tilt_motor_get_angle(&current_tilt_position);
+   if(current_tilt_position > TILT_MAX_ANGLE_RAD)
    {
-      duty = duty + 0.05f;
-      if(duty >= 1.0f)
-      {
-         duty = -1.0f;
-      }
-      TB6612_set_duty(duty);
-
+      TB6612_set_duty(-0.20);
    }
+
+   if(current_tilt_position < TILT_MIN_ANGLE_RAD)
+   {
+      TB6612_set_duty(0.20);
+   }
+
+   /* if(ms_counter%100 == 0) */
+   /* { */
+
+   /*    if(up == 1) */
+   /*    { */
+   /*       duty = duty + 0.05f; */
+   /*       if(duty >= 0.50f) */
+   /*       { */
+   /*          up = 0; */
+   /*       } */
+   /*    } */
+   /*    else */
+   /*    { */
+   /*       duty = duty - 0.05f; */
+   /*       if(duty <= 0.05f) */
+   /*       { */
+   /*          up = 1; */
+   /*       } */
+   /*    } */
+   /*    TB6612_set_duty(duty); */
+
+   /* } */
 
    if(ms_counter%100 == 0)
    {
@@ -850,6 +879,11 @@ void EXTI0_IRQHandler(void)
       {
          GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
       }
+
+      /* Zero the tilt motor here for now.  Eventually, we need to tie that to
+         the pin that will actually have the flag piped in. */
+      quad_encoder_set_position(TILT_ZERO_POSITION_QC);
+      TB6612_set_duty(0.25);
 
       /* Clear the EXTI line 0 pending bit */
       EXTI_ClearITPendingBit(EXTI_Line0);
