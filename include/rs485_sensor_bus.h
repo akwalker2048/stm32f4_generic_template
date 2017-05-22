@@ -12,4 +12,6 @@
 #define GP_CIRC_BUFFER_SIZE 8
 #include "gp_circular_buffer.h"
 
+#define RS485_SENSOR_BUS_BAUD 3000000
+
 #endif
