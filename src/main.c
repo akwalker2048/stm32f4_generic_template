@@ -14,17 +14,19 @@
 */
 
 /* Includes ------------------------------------------------------------------*/
+#include <math.h>
+
 #include "stm32f4xx.h"
 #include "system_stm32f4xx.h"
 
 #include "main.h"
 #include "hardware_STM32F407G_DISC1.h"
-#include "hardware_TB6612.h"
-#include "quad_encoder.h"
-#include "motor_control.h"
+
+
 #include "tilt_motor_control.h"
 #include "lepton_functions.h"
 
+#include "quad_encoder.h"
 
 #include "generic_packet.h"
 #include "gp_proj_motor.h"
@@ -42,6 +44,10 @@
 extern volatile uint8_t grab_frame;
 extern volatile uint8_t send_code_version;
 
+
+extern volatile motor_feedback_t mf;
+extern volatile uint8_t send_motor_feedback;
+
 /**
  * @brief  Main program
  * @param  None
@@ -58,12 +64,12 @@ int main(void)
    */
 
    float vc14, vc15;
-   GenericPacket gp, gp_two, gp_pos, gp_pos_rad;
+   GenericPacket gp, gp_two, gp_pos, gp_pos_rad, gp_mf;
 
    uint32_t pos_count;
-   float pos_rad;
+   float pos_rad, prev_pos_rad;
 
-   SystemCoreClockUpdate();
+   /* SystemCoreClockUpdate(); */
 
    init_gpio();
    /* init_usart_one(); */
@@ -75,14 +81,8 @@ int main(void)
    init_systick();
    init_adc();
 
-   quad_encoder_init();
-   TB6612_initialize();
-   /* tilt_motor_init_flag(); */
+   tilt_motor_init();
 
-   GPIO_SetBits(GPIOD, LED_PIN_RED);
-   blocking_wait_ms(1000);
-   GPIO_ResetBits(GPIOD, LED_PIN_RED);
-   blocking_wait_ms(1000);
    /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
    /* blocking_wait_ms(1000); */
    /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
@@ -90,18 +90,18 @@ int main(void)
    /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
    /* blocking_wait_ms(1000); */
    /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
+   /* blocking_wait_ms(1000); */
+   /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
+   /* blocking_wait_ms(1000); */
+   /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
 
 
-
-   non_blocking_wait_ms(185);
-
-
-   create_universal_word(&gp, SystemCoreClock);
-   usart_write_dma(gp.gp, gp.packet_length);
-   blocking_wait_ms(100);
-   create_universal_word(&gp, HSE_VALUE);
-   usart_write_dma(gp.gp, gp.packet_length);
-   blocking_wait_ms(100);
+   /* create_universal_word(&gp, SystemCoreClock); */
+   /* usart_write_dma(gp.gp, gp.packet_length); */
+   /* blocking_wait_ms(100); */
+   /* create_universal_word(&gp, HSE_VALUE); */
+   /* usart_write_dma(gp.gp, gp.packet_length); */
+   /* blocking_wait_ms(100); */
    /* create_universal_word(&gp, PLL_M); */
    /* usart_write_dma(gp.gp, gp.packet_length); */
    /* blocking_wait_ms(100); */
@@ -112,6 +112,8 @@ int main(void)
    /* usart_write_dma(gp.gp, gp.packet_length); */
 
 
+   tilt_motor_get_angle(&pos_rad);
+   prev_pos_rad = pos_rad;
 
    grab_frame = 3;
 
@@ -128,10 +130,26 @@ int main(void)
 
       /* write_timestamps(); */
 
+      handle_incoming_packets();
       write_outgoing();
 
       process_usart3_buffer();
 
+
+      tilt_motor_get_angle(&pos_rad);
+      if(fabs(pos_rad - prev_pos_rad) > 0.03)
+      {
+         create_motor_resp_position(&gp_pos_rad, pos_rad);
+         usart_write_dma(gp_pos_rad.gp, gp_pos_rad.packet_length);
+         prev_pos_rad = pos_rad;
+      }
+
+      if(send_motor_feedback)
+      {
+         create_motor_feedback(&gp_mf, mf);
+         usart_write_dma(gp_mf.gp, gp_mf.packet_length);
+         send_motor_feedback = 0;
+      }
 
 
 
@@ -142,16 +160,16 @@ int main(void)
          /* write_code_version(); */
          send_code_version = 0;
 
-         /* read_adc(&vc14, &vc15); */
-         /* /\* create_analog_voltage(&gp, ANALOG_VOLTAGE, vc14); *\/ */
-         /* /\* usart_write_dma(gp.gp, gp.packet_length); *\/ */
-         /* create_analog_voltage(&gp_two, ANALOG_BATTERY_VOLTAGE, vc15); */
-         /* usart_write_dma(gp_two.gp, gp_two.packet_length); */
+         read_adc(&vc14, &vc15);
+         /* create_analog_voltage(&gp, ANALOG_VOLTAGE, vc14); */
+         /* usart_write_dma(gp.gp, gp.packet_length); */
+         create_analog_voltage(&gp_two, ANALOG_BATTERY_VOLTAGE, vc15);
+         usart_write_dma(gp_two.gp, gp_two.packet_length);
 
-         quad_encoder_read_position(&pos_count);
-         pos_rad = 6.28318530718f * (float)pos_count / (64.0f * 4.0f);
-         create_universal_word(&gp_pos, pos_count);
-         usart_write_dma(gp_pos.gp, gp_pos.packet_length);
+         /* quad_encoder_read_position(&pos_count); */
+         /* pos_rad = 6.28318530718f * (float)pos_count / (64.0f * 4.0f); */
+         /* create_universal_word(&gp_pos, pos_count); */
+         /* usart_write_dma(gp_pos.gp, gp_pos.packet_length); */
 
          /* create_motor_resp_position(&gp_pos_rad, pos_rad); */
          /* usart_write_dma(gp_pos_rad.gp, gp_pos_rad.packet_length); */

@@ -35,8 +35,15 @@ volatile uint32_t vospi_circ_buffer_tail = 0;
 #define OUTGOING_CIRC_BUFFER_SIZE 16
 GenericPacket outgoing_circ_buffer[OUTGOING_CIRC_BUFFER_SIZE];
 volatile uint32_t outgoing_circ_buffer_head = 0;
-volatile uint32_t outgoing_circ_buffer_head_temp = 1;
+volatile uint32_t outgoing_circ_buffer_head_temp = 0;
 volatile uint32_t outgoing_circ_buffer_tail = 0;
+
+#define INCOMING_CIRC_BUFFER_SIZE 16
+GenericPacket incoming_circ_buffer[INCOMING_CIRC_BUFFER_SIZE];
+volatile uint32_t incoming_circ_buffer_head = 0;
+volatile uint32_t incoming_circ_buffer_head_temp = 1;
+volatile uint32_t incoming_circ_buffer_tail = 0;
+
 
 /* Variables Global Within This File */
 uint8_t gpio_initialized = 0;
@@ -315,6 +322,7 @@ void init_usart_one_dma(void)
 
    /* USART_InitStructure.USART_BaudRate = 115200; */
    USART_InitStructure.USART_BaudRate = 3000000;
+   /* USART_InitStructure.USART_BaudRate = 1500000; */
    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
    USART_InitStructure.USART_StopBits = USART_StopBits_1;
    USART_InitStructure.USART_Parity = USART_Parity_No;
@@ -385,7 +393,7 @@ void init_usart_one_dma(void)
    /* Enable the DMA RX Stream */
    DMA_Cmd(DMA2_Stream5, ENABLE);
 
-   retval = gp_receive_byte(0x00, GP_CONTROL_INITIALIZE, &(outgoing_circ_buffer[outgoing_circ_buffer_head_temp]));
+   retval = gp_receive_byte(0x00, GP_CONTROL_INITIALIZE, &(incoming_circ_buffer[incoming_circ_buffer_head_temp]));
 
    /* DMA_InitStructure.DMA_BufferSize = RX_BUFFER_SIZE; */
    /* DMA_InitStructure.DMA_Channel = DMA_Channel_4; */
@@ -736,16 +744,16 @@ void SysTick_Handler(void)
    }
 
 
-   tilt_motor_get_angle(&current_tilt_position);
-   if(current_tilt_position > TILT_MAX_ANGLE_RAD)
-   {
-      TB6612_set_duty(-0.20);
-   }
+   /* tilt_motor_get_angle(&current_tilt_position); */
+   /* if(current_tilt_position > TILT_MAX_ANGLE_RAD) */
+   /* { */
+   /*    TB6612_set_duty(-0.20); */
+   /* } */
 
-   if(current_tilt_position < TILT_MIN_ANGLE_RAD)
-   {
-      TB6612_set_duty(0.20);
-   }
+   /* if(current_tilt_position < TILT_MIN_ANGLE_RAD) */
+   /* { */
+   /*    TB6612_set_duty(0.20); */
+   /* } */
 
    /* if(ms_counter%100 == 0) */
    /* { */
@@ -870,20 +878,20 @@ void EXTI0_IRQHandler(void)
 {
    if(EXTI_GetITStatus(EXTI_Line0) != RESET)
    {
-      /* Toggle LED1 */
-      if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET)
-      {
-         GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);
-      }
-      else
-      {
-         GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
-      }
+      /* /\* Toggle LED1 *\/ */
+      /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET) */
+      /* { */
+      /*    GPIO_ResetBits(GPIOD, LED_PIN_ORANGE); */
+      /* } */
+      /* else */
+      /* { */
+      /*    GPIO_SetBits(GPIOD, LED_PIN_ORANGE); */
+      /* } */
 
       /* Zero the tilt motor here for now.  Eventually, we need to tie that to
          the pin that will actually have the flag piped in. */
-      quad_encoder_set_position(TILT_ZERO_POSITION_QC);
-      TB6612_set_duty(0.25);
+      /* quad_encoder_set_position(TILT_ZERO_POSITION_QC); */
+      /* TB6612_set_duty(0.25); */
 
       /* Clear the EXTI line 0 pending bit */
       EXTI_ClearITPendingBit(EXTI_Line0);
@@ -1031,7 +1039,7 @@ void process_rx_buffer(void)
          length++;
       }
 
-      retval = gp_receive_byte(rx_buffer[rx_buffer_tail], GP_CONTROL_RUN, &(outgoing_circ_buffer[outgoing_circ_buffer_head_temp]));
+      retval = gp_receive_byte(rx_buffer[rx_buffer_tail], GP_CONTROL_RUN, &(incoming_circ_buffer[incoming_circ_buffer_head_temp]));
 
       if((retval == GP_CHECKSUM_MATCH))
       {
@@ -1046,11 +1054,11 @@ void process_rx_buffer(void)
             GPIO_SetBits(GPIOD, LED_PIN_RED);
          }
 
-         outgoing_circ_buffer_head = outgoing_circ_buffer_head_temp;
-         outgoing_circ_buffer_head_temp++;
-         if(outgoing_circ_buffer_head_temp >= OUTGOING_CIRC_BUFFER_SIZE)
+         incoming_circ_buffer_head = incoming_circ_buffer_head_temp;
+         incoming_circ_buffer_head_temp++;
+         if(incoming_circ_buffer_head_temp >= INCOMING_CIRC_BUFFER_SIZE)
          {
-            outgoing_circ_buffer_head_temp = 0;
+            incoming_circ_buffer_head_temp = 0;
          }
       }
 
@@ -1069,6 +1077,138 @@ void process_rx_buffer(void)
 
 }
 
+
+
+void handle_incoming_packets(void)
+{
+   GenericPacket *gp;
+   uint32_t next_outgoing_head;
+   uint8_t retval;
+
+   float proportional, integral, derivative;
+
+   if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET)
+   {
+      GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);
+   }
+   else
+   {
+      GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
+   }
+
+
+   while(incoming_circ_buffer_tail != incoming_circ_buffer_head)
+   {
+      incoming_circ_buffer_tail = incoming_circ_buffer_tail + 1;
+      if(incoming_circ_buffer_tail >= INCOMING_CIRC_BUFFER_SIZE)
+      {
+         incoming_circ_buffer_tail = 0;
+      }
+
+      gp = &(incoming_circ_buffer[incoming_circ_buffer_tail]);
+
+      switch(gp->gp[GP_LOC_PROJ_ID])
+      {
+         case GP_PROJ_UNIVERSAL:
+            {
+               switch(gp->gp[GP_LOC_PROJ_SPEC])
+               {
+                  default:
+                     break;
+               }
+            }
+            break;
+         case GP_PROJ_MOTOR:
+            {
+               switch(gp->gp[GP_LOC_PROJ_SPEC])
+               {
+                  case MOTOR_SET_PID:
+                     {
+                        GPIO_SetBits(GPIOD, LED_PIN_RED);
+
+                        /* Extract the new values. */
+                        extract_motor_set_pid(gp, &proportional, &integral, &derivative);
+                        /* Call a function here to set the gains. */
+                        retval = tilt_motor_set_pid_gains(proportional, integral, derivative);
+                        if(retval == 0)
+                        {
+                           /* Query the new gains from the motor driver. */
+                           proportional = 0.0f;
+                           integral = 0.0f;
+                           derivative = 0.0f;
+                           retval = tilt_motor_query_pid_gains(&proportional, &integral, &derivative);
+                           if(retval == 0)
+                           {
+                              /* Respond with the new gains. */
+                              retval = get_next_outgoing_gp_head(&next_outgoing_head);
+                              if(retval == 0)
+                              {
+                                 create_motor_resp_pid(&(outgoing_circ_buffer[next_outgoing_head]), proportional, integral, derivative);
+                                 increment_outgoing_gp_head();
+                              }
+                              else
+                              {
+                                 /* Someone else was already writing the next outgoing
+                                    gp.  We need to handle that somehow.
+                                 */
+                              }
+                           }
+                        }
+                        GPIO_ResetBits(GPIOD, LED_PIN_RED);
+                     }
+                     break;
+                  case MOTOR_START:
+                     {
+                        retval = tilt_motor_start();
+                        if(retval == 0)
+                        {
+                           retval = get_next_outgoing_gp_head(&next_outgoing_head);
+                           if(retval == 0)
+                           {
+                              create_motor_start(&(outgoing_circ_buffer[next_outgoing_head]));
+                              increment_outgoing_gp_head();
+                           }
+                           else
+                           {
+                              /* Someone else was already writing the next outgoing
+                                 gp.  We need to handle that somehow.
+                              */
+                           }
+                        }
+                     }
+                     break;
+                  case MOTOR_STOP:
+                     {
+                        retval = tilt_motor_stop();
+                        if(retval == 0)
+                        {
+                           retval = get_next_outgoing_gp_head(&next_outgoing_head);
+                           if(retval == 0)
+                           {
+                              create_motor_stop(&(outgoing_circ_buffer[next_outgoing_head]));
+                              increment_outgoing_gp_head();
+                           }
+                           else
+                           {
+                              /* Someone else was already writing the next outgoing
+                                 gp.  We need to handle that somehow.
+                              */
+                           }
+                        }
+                     }
+                  default:
+                     break;
+               }
+               break;
+
+            }
+
+         default:
+            break;
+      }
+
+   }
+}
 
 /* uint8_t add_gp_to_circ_buffer(GenericPacket packet) */
 /* { */
@@ -1253,26 +1393,37 @@ void write_code_version(void)
 }
 
 
-/* uint8_t add_gp_to_outgoing(GenericPacket packet) */
-/* { */
-/*    uint8_t retval; */
-/*    uint32_t temp_head; */
+uint8_t get_next_outgoing_gp_head(uint32_t *next_outgoing_circ_buffer_head)
+{
+   uint8_t retval;
 
-/*    temp_head = outgoing_circ_buffer_head + 1; */
-/*    if(temp_head >= OUTGOING_CIRC_BUFFER_SIZE) */
-/*    { */
-/*       temp_head = 0; */
-/*    } */
-/*    retval = gp_copy_packet(packet, (GenericPacket *)&(outgoing_circ_buffer[temp_head])); */
-/*    if(retval != GP_SUCCESS) */
-/*    { */
-/*       return retval; */
-/*    } */
-/*    outgoing_circ_buffer_head = temp_head; */
+   retval = 0;
+   if(outgoing_circ_buffer_head_temp == outgoing_circ_buffer_head)
+   {
+      outgoing_circ_buffer_head_temp = outgoing_circ_buffer_head_temp + 1;
+      if(outgoing_circ_buffer_head_temp >= OUTGOING_CIRC_BUFFER_SIZE)
+      {
+         outgoing_circ_buffer_head_temp = 0;
+      }
+      *next_outgoing_circ_buffer_head = outgoing_circ_buffer_head_temp;
+   }
+   else
+   {
+      /* We cannot increment temp head because we haven't finished writing
+         the last packet yet.  Deal with it...
+      */
+      retval = 1;
+   }
 
-/*    return GP_SUCCESS; */
+   return retval;
+}
 
-/* } */
+
+void increment_outgoing_gp_head(void)
+{
+   outgoing_circ_buffer_head = outgoing_circ_buffer_head_temp;
+}
+
 
 void write_outgoing(void)
 {
@@ -1357,14 +1508,14 @@ void process_usart3_buffer(void)
 
    while(usart3_circ_buffer_tail != usart3_circ_buffer_head)
    {
-      if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_RED) == Bit_SET)
-      {
-         GPIO_ResetBits(GPIOD, LED_PIN_RED);
-      }
-      else
-      {
-         GPIO_SetBits(GPIOD, LED_PIN_RED);
-      }
+      /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_RED) == Bit_SET) */
+      /* { */
+      /*    GPIO_ResetBits(GPIOD, LED_PIN_RED); */
+      /* } */
+      /* else */
+      /* { */
+      /*    GPIO_SetBits(GPIOD, LED_PIN_RED); */
+      /* } */
 
       usart3_circ_buffer_tail++;
       if(usart3_circ_buffer_tail >= USART3_CIRC_BUFFER_SIZE)

@@ -6,6 +6,7 @@
 #include "gp_proj_thermal.h"
 #include "gp_proj_universal.h"
 #include "gp_proj_sonar.h"
+#include "gp_proj_motor.h"
 
 #ifndef GIT_REVISION
 #define GIT_REVISION "generic-stm32f4-DEADBEEF"
@@ -69,5 +70,9 @@ void write_outgoing(void);
 uint8_t read_adc(float *vc14, float *vc15);
 
 void process_usart3_buffer(void);
+
+void handle_incoming_packets(void);
+uint8_t get_next_outgoing_gp_head(uint32_t *next_outgoing_circ_buffer_head);
+void increment_outgoing_gp_head(void);
 
 #endif
