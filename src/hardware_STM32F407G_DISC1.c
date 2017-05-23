@@ -941,6 +941,8 @@ uint8_t usart_write_dma(uint8_t *data_ptr, uint32_t data_len)
 
    }
 
+   return 0;
+
 }
 
 uint8_t usart_write_byte(uint8_t data)

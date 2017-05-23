@@ -33,6 +33,8 @@
 #include "gp_proj_analog.h"
 #include "gp_proj_universal.h"
 
+#include "rs485_sensor_bus.h"
+
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -80,6 +82,9 @@ int main(void)
    init_i2c();
    init_systick();
    init_adc();
+
+   rs485_sensor_bus_init_master();
+   /* rs485_sensor_bus_init_slave(); */
 
    tilt_motor_init();
 
@@ -134,6 +139,13 @@ int main(void)
       write_outgoing();
 
       process_usart3_buffer();
+
+
+      rs485_master_process_rx_ram();
+      rs485_master_handle_packets();
+      /* rs485_slave_process_rx_ram(); */
+      /* rs485_slave_handle_packets(); */
+
 
 
       tilt_motor_get_angle(&pos_rad);
