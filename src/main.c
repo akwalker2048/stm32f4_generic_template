@@ -83,10 +83,11 @@ int main(void)
    init_systick();
    init_adc();
 
+   /* Cannot RS485 and Tilt!!!! Pin A2 */
    rs485_sensor_bus_init_master();
-   /* rs485_sensor_bus_init_slave(); */
-
-   tilt_motor_init();
+   rs485_sensor_bus_init_slave();
+   /* Cannot RS485 and Tilt!!!! Pin A2 */
+   /* tilt_motor_init(); */
 
    /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
    /* blocking_wait_ms(1000); */
@@ -117,7 +118,7 @@ int main(void)
    /* usart_write_dma(gp.gp, gp.packet_length); */
 
 
-   tilt_motor_get_angle(&pos_rad);
+   /* tilt_motor_get_angle(&pos_rad); */
    prev_pos_rad = pos_rad;
 
    grab_frame = 3;
@@ -138,30 +139,32 @@ int main(void)
       handle_incoming_packets();
       write_outgoing();
 
-      process_usart3_buffer();
+      /* process_usart3_buffer(); */
 
 
       rs485_master_process_rx_ram();
       rs485_master_handle_packets();
-      /* rs485_slave_process_rx_ram(); */
-      /* rs485_slave_handle_packets(); */
+      /* rs485_write_outgoing_master(); */
+
+      rs485_slave_process_rx_ram();
+      rs485_slave_handle_packets();
+      /* rs485_write_outgoing_slave(); */
 
 
+      /* tilt_motor_get_angle(&pos_rad); */
+      /* if(fabs(pos_rad - prev_pos_rad) > 0.03) */
+      /* { */
+      /*    create_motor_resp_position(&gp_pos_rad, pos_rad); */
+      /*    usart_write_dma(gp_pos_rad.gp, gp_pos_rad.packet_length); */
+      /*    prev_pos_rad = pos_rad; */
+      /* } */
 
-      tilt_motor_get_angle(&pos_rad);
-      if(fabs(pos_rad - prev_pos_rad) > 0.03)
-      {
-         create_motor_resp_position(&gp_pos_rad, pos_rad);
-         usart_write_dma(gp_pos_rad.gp, gp_pos_rad.packet_length);
-         prev_pos_rad = pos_rad;
-      }
-
-      if(send_motor_feedback)
-      {
-         create_motor_feedback(&gp_mf, mf);
-         usart_write_dma(gp_mf.gp, gp_mf.packet_length);
-         send_motor_feedback = 0;
-      }
+      /* if(send_motor_feedback) */
+      /* { */
+      /*    create_motor_feedback(&gp_mf, mf); */
+      /*    usart_write_dma(gp_mf.gp, gp_mf.packet_length); */
+      /*    send_motor_feedback = 0; */
+      /* } */
 
 
 
@@ -169,22 +172,22 @@ int main(void)
       if(send_code_version == 1)
       {
 
-         /* write_code_version(); */
-         send_code_version = 0;
+         /* /\* write_code_version(); *\/ */
+         /* send_code_version = 0; */
 
-         read_adc(&vc14, &vc15);
-         /* create_analog_voltage(&gp, ANALOG_VOLTAGE, vc14); */
-         /* usart_write_dma(gp.gp, gp.packet_length); */
-         create_analog_voltage(&gp_two, ANALOG_BATTERY_VOLTAGE, vc15);
-         usart_write_dma(gp_two.gp, gp_two.packet_length);
+         /* read_adc(&vc14, &vc15); */
+         /* /\* create_analog_voltage(&gp, ANALOG_VOLTAGE, vc14); *\/ */
+         /* /\* usart_write_dma(gp.gp, gp.packet_length); *\/ */
+         /* create_analog_voltage(&gp_two, ANALOG_BATTERY_VOLTAGE, vc15); */
+         /* usart_write_dma(gp_two.gp, gp_two.packet_length); */
 
-         /* quad_encoder_read_position(&pos_count); */
-         /* pos_rad = 6.28318530718f * (float)pos_count / (64.0f * 4.0f); */
-         /* create_universal_word(&gp_pos, pos_count); */
-         /* usart_write_dma(gp_pos.gp, gp_pos.packet_length); */
+         /* /\* quad_encoder_read_position(&pos_count); *\/ */
+         /* /\* pos_rad = 6.28318530718f * (float)pos_count / (64.0f * 4.0f); *\/ */
+         /* /\* create_universal_word(&gp_pos, pos_count); *\/ */
+         /* /\* usart_write_dma(gp_pos.gp, gp_pos.packet_length); *\/ */
 
-         /* create_motor_resp_position(&gp_pos_rad, pos_rad); */
-         /* usart_write_dma(gp_pos_rad.gp, gp_pos_rad.packet_length); */
+         /* /\* create_motor_resp_position(&gp_pos_rad, pos_rad); *\/ */
+         /* /\* usart_write_dma(gp_pos_rad.gp, gp_pos_rad.packet_length); *\/ */
 
       }
 

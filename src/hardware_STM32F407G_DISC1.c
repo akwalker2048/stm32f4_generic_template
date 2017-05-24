@@ -1047,13 +1047,13 @@ void process_rx_buffer(void)
       {
          if(light_on == 1)
          {
-            GPIO_ResetBits(GPIOD, LED_PIN_RED);
+            /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
             light_on = 0;
          }
          else
          {
             light_on = 1;
-            GPIO_SetBits(GPIOD, LED_PIN_RED);
+            /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
          }
 
          incoming_circ_buffer_head = incoming_circ_buffer_head_temp;
@@ -1089,14 +1089,14 @@ void handle_incoming_packets(void)
 
    float proportional, integral, derivative;
 
-   if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET)
-   {
-      GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);
-   }
-   else
-   {
-      GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
-   }
+   /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET) */
+   /* { */
+   /*    GPIO_ResetBits(GPIOD, LED_PIN_ORANGE); */
+   /* } */
+   /* else */
+   /* { */
+   /*    GPIO_SetBits(GPIOD, LED_PIN_ORANGE); */
+   /* } */
 
 
    while(incoming_circ_buffer_tail != incoming_circ_buffer_head)
@@ -1126,7 +1126,7 @@ void handle_incoming_packets(void)
                {
                   case MOTOR_SET_PID:
                      {
-                        GPIO_SetBits(GPIOD, LED_PIN_RED);
+                        /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
 
                         /* Extract the new values. */
                         extract_motor_set_pid(gp, &proportional, &integral, &derivative);
@@ -1156,7 +1156,7 @@ void handle_incoming_packets(void)
                               }
                            }
                         }
-                        GPIO_ResetBits(GPIOD, LED_PIN_RED);
+                        /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
                      }
                      break;
                   case MOTOR_START:
