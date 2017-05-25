@@ -1,6 +1,12 @@
 #include "rs485_sensor_bus.h"
 #include "circular_buffer.h"
 
+/* GP_CIRC_BUFFER_SIZE defaults to 16 within the generic packet code if you
+ * don't override it.
+ */
+#define GP_CIRC_BUFFER_SIZE 8
+#include "gp_circular_buffer.h"
+
 #include "hardware_STM32F407G_DISC1.h"
 
 /* Buffers for raw data dma send and receive. */
@@ -65,7 +71,7 @@ void TIM1_BRK_TIM9_IRQHandler(void)
                if(retval == GP_SUCCESS)
                {
                   response_received = 0;
-                  rs485_master_write_dma(packet_query.gp, packet_query.packet_length);
+                  rs485_master_write_dma(packet_query.gp, (packet_query.packet_length + GP_ALIGNMENT_PADDING));
                   rs485_master_state_change(RS485_MASTER_AWAIT_RESPONSE, 1);
                }
                else
@@ -433,6 +439,7 @@ void rs485_master_process_rx_dma(void)
    uint16_t dma_head;
    uint8_t rx_byte;
 
+   /* Warning!!! this may be a problem.  cb_size may not be the actual size of the dma register here!!!! */
    dma_head = (cb_master_dma_rx.cb_size - DMA1_Stream5->NDTR);
    retval = cb_set_head_dma(&cb_master_dma_rx, dma_head);
    if(retval == CB_SUCCESS)

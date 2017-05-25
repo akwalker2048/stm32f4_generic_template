@@ -13,11 +13,6 @@
 #define DMA_RX_BUFFER_SIZE (GP_MAX_PACKET_LENGTH * 4)
 #define RAM_RX_BUFFER_SIZE (4 * DMA_RX_BUFFER_SIZE)
 
-/* GP_CIRC_BUFFER_SIZE defaults to 16 within the generic packet code if you
- * don't override it.
- */
-#define GP_CIRC_BUFFER_SIZE 8
-#include "gp_circular_buffer.h"
 
 #define RS485_SENSOR_BUS_BAUD   1500000
 #define RS485_SENSOR_BUS_SM_HZ     2000

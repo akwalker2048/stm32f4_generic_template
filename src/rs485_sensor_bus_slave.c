@@ -1,6 +1,12 @@
 #include "rs485_sensor_bus.h"
 #include "circular_buffer.h"
 
+/* GP_CIRC_BUFFER_SIZE defaults to 16 within the generic packet code if you
+ * don't override it.
+ */
+#define GP_CIRC_BUFFER_SIZE 8
+#include "gp_circular_buffer.h"
+
 #include "hardware_STM32F407G_DISC1.h"
 
 /* Buffers for raw data dma send and receive. */
@@ -396,16 +402,18 @@ void rs485_slave_process_rx_ram(void)
          retval_gpcb = gpcb_receive_byte(rx_byte, &gpcbs_slave_rx);
 
          /* for debug */
-         asm("DMB"); /* Data Memory Barrier */
-         asm("DSB"); /* Data Synchronization Barrier */
-         asm("ISB"); /* Instruction Synchronization Barrier. */
+
          /* retval_debug = create_universal_byte(&gp_debug, 0x08); */
          create_universal_byte(&gp_debug, retval_gpcb);
          if(retval_debug == GP_SUCCESS)
          {
-            asm("DMB"); /* Data Memory Barrier */
-            asm("DSB"); /* Data Synchronization Barrier */
-            asm("ISB"); /* Instruction Synchronization Barrier. */
+            /* I don't think I need these...I think my communication issue is
+             * because I am creating the next packet before this one has
+             * finished writing.  Need to create a circular buffer here.
+             */
+            /* asm("DMB"); /\* Data Memory Barrier *\/ */
+            /* asm("DSB"); /\* Data Synchronization Barrier *\/ */
+            /* asm("ISB"); /\* Instruction Synchronization Barrier. *\/ */
             usart_write_dma(gp_debug.gp, gp_debug.packet_length);
          }
 
@@ -464,7 +472,7 @@ void rs485_slave_handle_packets(void)
                               retval = create_rs485_resp_sensor_info(&gp_sensor_info, RS485_ADDRESS_MASTER, RS485_SB_TYPE_PROXIMITY_SONAR, p);
                               if(retval == GP_SUCCESS)
                               {
-                                 rs485_slave_write_dma(gp_sensor_info.gp, gp_sensor_info.packet_length);
+                                 rs485_slave_write_dma(gp_sensor_info.gp, (gp_sensor_info.packet_length + GP_ALIGNMENT_PADDING));
                               }
                            }
                         } /* RS485_QUERY_SENSOR_INFO */
