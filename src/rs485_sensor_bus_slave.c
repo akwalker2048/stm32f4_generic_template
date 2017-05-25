@@ -18,7 +18,9 @@ uint8_t rs485_slave_ram_rx_buffer[RAM_RX_BUFFER_SIZE];
 circular_buffer_t cb_slave_ram_rx;
 
 /* Buffers for incoming and outgoing GenericPacket data. */
+GenericPacket gp_slave_tx[GP_CIRC_BUFFER_SIZE_TX];
 GenericPacketCircularBuffer gpcbs_slave_tx;
+GenericPacket gp_slave_rx[GP_CIRC_BUFFER_SIZE_RX];
 GenericPacketCircularBuffer gpcbs_slave_rx;
 
 /* Let us know when we're up! */
@@ -70,13 +72,13 @@ uint8_t rs485_sensor_bus_init_slave(void)
    uint8_t retval;
 
    /* Initialize our packet circular buffers. */
-   retval = gpcb_initialize(&gpcbs_slave_tx);
+   retval = gpcb_initialize(&gpcbs_slave_tx, gp_slave_tx, GP_CIRC_BUFFER_SIZE_TX);
    if(retval != GP_CIRC_BUFFER_SUCCESS)
    {
       fail = 1;
    }
 
-   retval = gpcb_initialize(&gpcbs_slave_rx);
+   retval = gpcb_initialize(&gpcbs_slave_rx, gp_slave_rx, GP_CIRC_BUFFER_SIZE_RX);
    if(retval != GP_CIRC_BUFFER_SUCCESS)
    {
       fail = 1;

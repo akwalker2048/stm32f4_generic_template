@@ -21,13 +21,7 @@
 #define INIT_VARIABLES
 #include "full_duplex_usart_dma.h"
 
-/* GP_CIRC_BUFFER_SIZE defaults to 16 within the generic packet code if you
- * don't override it.
- */
-#define GP_CIRC_BUFFER_SIZE FDUD_RX_QUEUE_SIZE
 #include "gp_circular_buffer.h"
-
-
 
 /* Private Defines */
 
@@ -41,6 +35,7 @@ uint16_t full_duplex_usart_dma_rx_buffer_tail = 0;
 FDUD_TxQueue_Struct fdud_txqs[FDUD_TX_QUEUE_SIZE];
 FDUD_TxQueue_CB_Struct fdud_txq_cb;
 
+GenericPacket fdud_rx[FDUD_RX_QUEUE_SIZE];
 GenericPacketCircularBuffer fdud_rx_gpcb;
 
 /* Private Functions */
@@ -81,7 +76,7 @@ uint8_t full_duplex_usart_dma_init(void)
    fdud_txq_cb.tail = 0;
 
    /* Rx GenericPacket Circular Buffer */
-   retval = gpcb_initialize(&fdud_rx_gpcb);
+   retval = gpcb_initialize(&fdud_rx_gpcb, fdud_rx, FDUD_RX_QUEUE_SIZE);
    if(retval != GP_CIRC_BUFFER_SUCCESS)
    {
       fail = 1;

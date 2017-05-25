@@ -1,10 +1,6 @@
 #include "rs485_sensor_bus.h"
 #include "circular_buffer.h"
 
-/* GP_CIRC_BUFFER_SIZE defaults to 16 within the generic packet code if you
- * don't override it.
- */
-#define GP_CIRC_BUFFER_SIZE 8
 #include "gp_circular_buffer.h"
 
 #include "hardware_STM32F407G_DISC1.h"
@@ -21,7 +17,9 @@ uint8_t rs485_master_ram_rx_buffer[RAM_RX_BUFFER_SIZE];
 circular_buffer_t cb_master_ram_rx;
 
 /* Buffers for incoming and outgoing GenericPacket data. */
+GenericPacket gp_master_tx[GP_CIRC_BUFFER_SIZE_TX];
 GenericPacketCircularBuffer gpcbs_master_tx;
+GenericPacket gp_master_rx[GP_CIRC_BUFFER_SIZE_RX];
 GenericPacketCircularBuffer gpcbs_master_rx;
 
 /* Let us know when we're up! */
@@ -143,13 +141,13 @@ uint8_t rs485_sensor_bus_init_master(void)
    uint8_t retval;
 
    /* Initialize our packet circular buffers. */
-   retval = gpcb_initialize(&gpcbs_master_tx);
+   retval = gpcb_initialize(&gpcbs_master_tx, gp_master_tx, GP_CIRC_BUFFER_SIZE_TX);
    if(retval != GP_CIRC_BUFFER_SUCCESS)
    {
       fail = 1;
    }
 
-   retval = gpcb_initialize(&gpcbs_master_rx);
+   retval = gpcb_initialize(&gpcbs_master_rx, gp_master_rx, GP_CIRC_BUFFER_SIZE_RX);
    if(retval != GP_CIRC_BUFFER_SUCCESS)
    {
       fail = 1;
