@@ -28,6 +28,8 @@
 /* Private Variables */
 uint8_t full_duplex_usart_dma_initialized = 0;
 
+GenericPacketCallack fdud_gp_handler = NULL;
+
 uint8_t full_duplex_usart_dma_tx_buffer[FDUD_TX_DMA_SIZE];
 uint8_t full_duplex_usart_dma_rx_buffer[FDUD_RX_DMA_SIZE];
 uint16_t full_duplex_usart_dma_rx_buffer_tail = 0;
@@ -63,7 +65,7 @@ uint8_t full_duplex_usart_dma_up(void)
  * Notes:
  *
  */
-uint8_t full_duplex_usart_dma_init(void)
+uint8_t full_duplex_usart_dma_init(GenericPacketCallack gp_handler)
 {
    uint8_t fail = 0;
    uint8_t retval;
@@ -81,6 +83,9 @@ uint8_t full_duplex_usart_dma_init(void)
    {
       fail = 1;
    }
+
+   /* Set the Callback Function Pointer */
+   fdud_gp_handler = gp_handler;
 
    /* Init Hardware */
    full_duplex_usart_dma_communications_init();
@@ -107,6 +112,8 @@ void full_duplex_usart_dma_service(void)
 {
    full_duplex_usart_dma_service_rx();
    full_duplex_usart_dma_service_tx();
+   /* Call packet handling fucntion for all received and valid packets? */
+
 }
 
 /* PUBLIC full_duplex_usart_dma_add_to_queue
@@ -202,6 +209,41 @@ void full_duplex_usart_dma_service_tx(void)
    }
 }
 
+/* PUBLIC full_duplex_usart_dma_get_rx_packet
+ *
+ * Notes:
+ *  +Not 100% sure how to implement this yet...copying GenericPackets has been
+ *   a little difficult on the micro (bandwidth/resources)...however, if I just
+ *   hand out a pointer here, I need to figure out when it's done being used
+ *   so that the tail can be incremented.  Maybe I just increment the tail and
+ *   assume that by the time the buffer gets back around to here that it's ok
+ *   to overwrite?  Seems like a bad idea... But so does expected the caller
+ *   to let me know when they're done...
+ *  +Anyway, the main program needs to be able to retrieve the next incoming
+ *   GenericPacket that has been received...Unless it's going to be handled
+ *   in here?  It would be OK for now...but then when I want to share the code
+ *   later...it's not as flexible.  Maybe I should have the caller send a
+ *   pointer to the handler function at init time...and I can call that
+ *   function with the next valid packet when I find it?
+ */
+uint8_t full_duplex_usart_dma_get_rx_packet(GenericPacket *gp_ptr)
+{
+   uint8_t retval;
+
+   if(full_duplex_usart_dma_initialized)
+   {
+      /* Or... while(gpcb_increment_tail(&fdud_rx_gpcb) == GP_CIRC_BUFFER_SUCCESS)
+       * or...maybe not...need to post increment here...
+       */
+      while(fdud_rx_gpcb.gpcb_tail != fdud_rx_gpcb.gpcb_head)
+      {
+         fdud_gp_handler(&(fdud_rx_gpcb.gpcb[fdud_rx_gpcb.gpcb_tail]));
+
+         retval = gpcb_increment_tail(&fdud_rx_gpcb);
+
+      }
+   }
+}
 
 
 /* PRIVATE init_full_duplex_usart_dma_communications

@@ -1,6 +1,8 @@
 #ifndef FULL_DUPLEX_USART_DMA_H
 #define FULL_DUPLEX_USART_DMA_H
 
+#include <stdlib.h>
+
 /* Hardware related defines for this processor. */
 #include "stm32f4xx_conf.h"
 
@@ -49,7 +51,7 @@ typedef struct {
 
 /* Public Functions */
 uint8_t full_duplex_usart_dma_up(void);
-uint8_t full_duplex_usart_dma_init(void);
+uint8_t full_duplex_usart_dma_init(GenericPacketCallack gp_handler);
 void full_duplex_usart_dma_service(void);
 uint8_t full_duplex_usart_dma_add_to_queue(GenericPacket *gp_ptr, FDUD_TxQueueCallback callback_func, uint32_t callback_data);
 
