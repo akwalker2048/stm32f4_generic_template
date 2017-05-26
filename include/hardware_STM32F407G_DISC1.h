@@ -28,7 +28,7 @@
 
 void init_gpio(void);
 void init_systick(void);
-void init_usart_three(void);
+
 void init_usart_one(void);
 void init_usart_one_dma(void);
 void init_adc(void);
@@ -41,8 +41,6 @@ void init_i2c(void);
 
 uint8_t usart_write_byte(uint8_t data);
 uint8_t usart_write_dma(uint8_t *data_ptr, uint32_t data_len);
-
-uint8_t usart_three_write_byte(uint8_t data);
 
 void process_rx_buffer(void);
 
@@ -68,8 +66,6 @@ void increment_vospi_head(void);
 void write_outgoing(void);
 
 uint8_t read_adc(float *vc14, float *vc15);
-
-void process_usart3_buffer(void);
 
 void handle_incoming_packets(void);
 uint8_t get_next_outgoing_gp_head(uint32_t *next_outgoing_circ_buffer_head);

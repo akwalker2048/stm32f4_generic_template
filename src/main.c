@@ -89,7 +89,7 @@ int main(void)
    rx_packet_handler_init();
    full_duplex_usart_dma_init(rx_packet_handler_ptr);
 
-   init_usart_three();
+   /* init_usart_three(); */
    init_pushbutton();
 
    /* init_spi(); */

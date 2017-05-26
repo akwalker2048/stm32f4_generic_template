@@ -17,6 +17,7 @@
 
 #define RX_PACKET_HANDLER_GP_QUEUE_SIZE 16
 
+void rx_packet_handler_init(void);
 void rx_packet_handler(GenericPacket *gp_ptr);
 void rx_packet_handler_packet_send_callback(uint32_t new_tail);
 
