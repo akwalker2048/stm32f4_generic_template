@@ -8,6 +8,7 @@
 
 /* High level packet information as we will be sending packets. */
 #include "generic_packet.h"
+#include "gp_circular_buffer.h"
 
 /* Global Variables */
 #ifdef INIT_VARIABLES
@@ -51,7 +52,7 @@ typedef struct {
 
 /* Public Functions */
 uint8_t full_duplex_usart_dma_up(void);
-uint8_t full_duplex_usart_dma_init(GenericPacketCallack gp_handler);
+uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler);
 void full_duplex_usart_dma_service(void);
 uint8_t full_duplex_usart_dma_add_to_queue(GenericPacket *gp_ptr, FDUD_TxQueueCallback callback_func, uint32_t callback_data);
 

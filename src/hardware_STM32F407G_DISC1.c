@@ -1081,137 +1081,138 @@ void process_rx_buffer(void)
 
 
 
-void handle_incoming_packets(void)
-{
-   GenericPacket *gp;
-   uint32_t next_outgoing_head;
-   uint8_t retval;
+/* void handle_incoming_packets(void) */
+/* { */
+/*    GenericPacket *gp; */
+/*    uint32_t next_outgoing_head; */
+/*    uint8_t retval; */
 
-   float proportional, integral, derivative;
+/*    float proportional, integral, derivative; */
 
-   /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET) */
-   /* { */
-   /*    GPIO_ResetBits(GPIOD, LED_PIN_ORANGE); */
-   /* } */
-   /* else */
-   /* { */
-   /*    GPIO_SetBits(GPIOD, LED_PIN_ORANGE); */
-   /* } */
+/*    /\* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET) *\/ */
+/*    /\* { *\/ */
+/*    /\*    GPIO_ResetBits(GPIOD, LED_PIN_ORANGE); *\/ */
+/*    /\* } *\/ */
+/*    /\* else *\/ */
+/*    /\* { *\/ */
+/*    /\*    GPIO_SetBits(GPIOD, LED_PIN_ORANGE); *\/ */
+/*    /\* } *\/ */
 
 
-   while(incoming_circ_buffer_tail != incoming_circ_buffer_head)
-   {
-      incoming_circ_buffer_tail = incoming_circ_buffer_tail + 1;
-      if(incoming_circ_buffer_tail >= INCOMING_CIRC_BUFFER_SIZE)
-      {
-         incoming_circ_buffer_tail = 0;
-      }
+/*    while(incoming_circ_buffer_tail != incoming_circ_buffer_head) */
+/*    { */
+/*       incoming_circ_buffer_tail = incoming_circ_buffer_tail + 1; */
+/*       if(incoming_circ_buffer_tail >= INCOMING_CIRC_BUFFER_SIZE) */
+/*       { */
+/*          incoming_circ_buffer_tail = 0; */
+/*       } */
 
-      gp = &(incoming_circ_buffer[incoming_circ_buffer_tail]);
+/*       gp = &(incoming_circ_buffer[incoming_circ_buffer_tail]); */
 
-      switch(gp->gp[GP_LOC_PROJ_ID])
-      {
-         case GP_PROJ_UNIVERSAL:
-            {
-               switch(gp->gp[GP_LOC_PROJ_SPEC])
-               {
-                  default:
-                     break;
-               }
-            }
-            break;
-         case GP_PROJ_MOTOR:
-            {
-               switch(gp->gp[GP_LOC_PROJ_SPEC])
-               {
-                  case MOTOR_SET_PID:
-                     {
-                        /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
+/*       switch(gp->gp[GP_LOC_PROJ_ID]) */
+/*       { */
+/*          case GP_PROJ_UNIVERSAL: */
+/*             { */
+/*                switch(gp->gp[GP_LOC_PROJ_SPEC]) */
+/*                { */
+/*                   default: */
+/*                      break; */
+/*                } */
+/*             } */
+/*             break; */
+/*          case GP_PROJ_MOTOR: */
+/*             { */
+/*                switch(gp->gp[GP_LOC_PROJ_SPEC]) */
+/*                { */
+/*                   case MOTOR_SET_PID: */
+/*                      { */
+/*                         /\* GPIO_SetBits(GPIOD, LED_PIN_RED); *\/ */
 
-                        /* Extract the new values. */
-                        extract_motor_set_pid(gp, &proportional, &integral, &derivative);
-                        /* Call a function here to set the gains. */
-                        retval = tilt_motor_set_pid_gains(proportional, integral, derivative);
-                        if(retval == 0)
-                        {
-                           /* Query the new gains from the motor driver. */
-                           proportional = 0.0f;
-                           integral = 0.0f;
-                           derivative = 0.0f;
-                           retval = tilt_motor_query_pid_gains(&proportional, &integral, &derivative);
-                           if(retval == 0)
-                           {
-                              /* Respond with the new gains. */
-                              retval = get_next_outgoing_gp_head(&next_outgoing_head);
-                              if(retval == 0)
-                              {
-                                 create_motor_resp_pid(&(outgoing_circ_buffer[next_outgoing_head]), proportional, integral, derivative);
-                                 increment_outgoing_gp_head();
-                              }
-                              else
-                              {
-                                 /* Someone else was already writing the next outgoing
-                                    gp.  We need to handle that somehow.
-                                 */
-                              }
-                           }
-                        }
-                        /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
-                     }
-                     break;
-                  case MOTOR_START:
-                     {
-                        retval = tilt_motor_start();
-                        if(retval == 0)
-                        {
-                           retval = get_next_outgoing_gp_head(&next_outgoing_head);
-                           if(retval == 0)
-                           {
-                              create_motor_start(&(outgoing_circ_buffer[next_outgoing_head]));
-                              increment_outgoing_gp_head();
-                           }
-                           else
-                           {
-                              /* Someone else was already writing the next outgoing
-                                 gp.  We need to handle that somehow.
-                              */
-                           }
-                        }
-                     }
-                     break;
-                  case MOTOR_STOP:
-                     {
-                        retval = tilt_motor_stop();
-                        if(retval == 0)
-                        {
-                           retval = get_next_outgoing_gp_head(&next_outgoing_head);
-                           if(retval == 0)
-                           {
-                              create_motor_stop(&(outgoing_circ_buffer[next_outgoing_head]));
-                              increment_outgoing_gp_head();
-                           }
-                           else
-                           {
-                              /* Someone else was already writing the next outgoing
-                                 gp.  We need to handle that somehow.
-                              */
-                           }
-                        }
-                     }
-                  default:
-                     break;
-               }
-               break;
+/*                         /\* Extract the new values. *\/ */
+/*                         extract_motor_set_pid(gp, &proportional, &integral, &derivative); */
+/*                         /\* Call a function here to set the gains. *\/ */
+/*                         retval = tilt_motor_set_pid_gains(proportional, integral, derivative); */
+/*                         if(retval == 0) */
+/*                         { */
+/*                            /\* Query the new gains from the motor driver. *\/ */
+/*                            proportional = 0.0f; */
+/*                            integral = 0.0f; */
+/*                            derivative = 0.0f; */
+/*                            retval = tilt_motor_query_pid_gains(&proportional, &integral, &derivative); */
+/*                            if(retval == 0) */
+/*                            { */
+/*                               /\* Respond with the new gains. *\/ */
+/*                               retval = get_next_outgoing_gp_head(&next_outgoing_head); */
+/*                               if(retval == 0) */
+/*                               { */
+/*                                  create_motor_resp_pid(&(outgoing_circ_buffer[next_outgoing_head]), proportional, integral, derivative); */
+/*                                  increment_outgoing_gp_head(); */
+/*                               } */
+/*                               else */
+/*                               { */
+/*                                  /\* Someone else was already writing the next outgoing */
+/*                                     gp.  We need to handle that somehow. */
+/*                                  *\/ */
+/*                               } */
+/*                            } */
+/*                         } */
+/*                         /\* GPIO_ResetBits(GPIOD, LED_PIN_RED); *\/ */
+/*                      } */
+/*                      break; */
+/*                   case MOTOR_START: */
+/*                      { */
+/*                         retval = tilt_motor_start(); */
+/*                         if(retval == 0) */
+/*                         { */
+/*                            retval = get_next_outgoing_gp_head(&next_outgoing_head); */
+/*                            if(retval == 0) */
+/*                            { */
+/*                               create_motor_start(&(outgoing_circ_buffer[next_outgoing_head])); */
+/*                               increment_outgoing_gp_head(); */
+/*                            } */
+/*                            else */
+/*                            { */
+/*                               /\* Someone else was already writing the next outgoing */
+/*                                  gp.  We need to handle that somehow. */
+/*                               *\/ */
+/*                            } */
+/*                         } */
+/*                      } */
+/*                      break; */
+/*                   case MOTOR_STOP: */
+/*                      { */
+/*                         retval = tilt_motor_stop(); */
+/*                         if(retval == 0) */
+/*                         { */
+/*                            retval = get_next_outgoing_gp_head(&next_outgoing_head); */
+/*                            if(retval == 0) */
+/*                            { */
+/*                               create_motor_stop(&(outgoing_circ_buffer[next_outgoing_head])); */
+/*                               increment_outgoing_gp_head(); */
+/*                            } */
+/*                            else */
+/*                            { */
+/*                               /\* Someone else was already writing the next outgoing */
+/*                                  gp.  We need to handle that somehow. */
+/*                               *\/ */
+/*                            } */
+/*                         } */
+/*                      } */
+/*                   default: */
+/*                      break; */
+/*                } */
+/*                break; */
 
-            }
+/*             } */
 
-         default:
-            break;
-      }
+/*          default: */
+/*             break; */
+/*       } */
 
-   }
-}
+/*    } */
+/* } */
 
+/* AWALKER - This was defunct long before I started commenting stuff out today (26MAY2017) */
 /* uint8_t add_gp_to_circ_buffer(GenericPacket packet) */
 /* { */
 /*    uint8_t retval; */

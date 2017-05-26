@@ -22,6 +22,8 @@
 #include "main.h"
 #include "hardware_STM32F407G_DISC1.h"
 
+#include "full_duplex_usart_dma.h"
+#include "rx_packet_handler.h"
 
 #include "tilt_motor_control.h"
 #include "lepton_functions.h"
@@ -65,6 +67,10 @@ int main(void)
      system_stm32f4xx.c file
    */
 
+
+   GenericPacketCallback rx_packet_handler_ptr = &rx_packet_handler;
+
+
    float vc14, vc15;
    GenericPacket gp, gp_two, gp_pos, gp_pos_rad, gp_mf;
 
@@ -75,11 +81,20 @@ int main(void)
 
    init_gpio();
    /* init_usart_one(); */
-   init_usart_one_dma();
+   /* init_usart_one_dma(); */
+
+   /* rx_packet_handler_init() must be called before full_duplex_usart_dma_init()
+    * or else we won't be ready to get packet handler callbacks...
+    */
+   rx_packet_handler_init();
+   full_duplex_usart_dma_init(rx_packet_handler_ptr);
+
    init_usart_three();
    init_pushbutton();
+
    /* init_spi(); */
-   init_i2c();
+   /* init_i2c(); */
+
    init_systick();
    init_adc();
 
@@ -88,34 +103,6 @@ int main(void)
    rs485_sensor_bus_init_slave();
    /* Cannot RS485 and Tilt!!!! Pin A2 */
    /* tilt_motor_init(); */
-
-   /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
-   /* blocking_wait_ms(1000); */
-   /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
-   /* blocking_wait_ms(1000); */
-   /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
-   /* blocking_wait_ms(1000); */
-   /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
-   /* blocking_wait_ms(1000); */
-   /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
-   /* blocking_wait_ms(1000); */
-   /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
-
-
-   /* create_universal_word(&gp, SystemCoreClock); */
-   /* usart_write_dma(gp.gp, gp.packet_length); */
-   /* blocking_wait_ms(100); */
-   /* create_universal_word(&gp, HSE_VALUE); */
-   /* usart_write_dma(gp.gp, gp.packet_length); */
-   /* blocking_wait_ms(100); */
-   /* create_universal_word(&gp, PLL_M); */
-   /* usart_write_dma(gp.gp, gp.packet_length); */
-   /* blocking_wait_ms(100); */
-   /* create_universal_word(&gp, PLL_N); */
-   /* usart_write_dma(gp.gp, gp.packet_length); */
-   /* blocking_wait_ms(100); */
-   /* create_universal_word(&gp, PLL_P); */
-   /* usart_write_dma(gp.gp, gp.packet_length); */
 
 
    /* tilt_motor_get_angle(&pos_rad); */
@@ -136,8 +123,9 @@ int main(void)
 
       /* write_timestamps(); */
 
-      handle_incoming_packets();
-      write_outgoing();
+
+      /* handle_incoming_packets(); */
+      /* write_outgoing(); */
 
       /* process_usart3_buffer(); */
 

@@ -28,7 +28,7 @@
 /* Private Variables */
 uint8_t full_duplex_usart_dma_initialized = 0;
 
-GenericPacketCallack fdud_gp_handler = NULL;
+GenericPacketCallback fdud_gp_handler = NULL;
 
 uint8_t full_duplex_usart_dma_tx_buffer[FDUD_TX_DMA_SIZE];
 uint8_t full_duplex_usart_dma_rx_buffer[FDUD_RX_DMA_SIZE];
@@ -36,15 +36,18 @@ uint16_t full_duplex_usart_dma_rx_buffer_tail = 0;
 
 FDUD_TxQueue_Struct fdud_txqs[FDUD_TX_QUEUE_SIZE];
 FDUD_TxQueue_CB_Struct fdud_txq_cb;
+volatile uint8_t fdud_txq_cb_mutex = 0;
+
 
 GenericPacket fdud_rx[FDUD_RX_QUEUE_SIZE];
 GenericPacketCircularBuffer fdud_rx_gpcb;
+
 
 /* Private Functions */
 void full_duplex_usart_dma_communications_init(void);
 void full_duplex_usart_dma_service_rx(void);
 void full_duplex_usart_dma_service_tx(void);
-
+void full_duplex_usart_dma_write(void);
 
 /* PUBLIC full_duplex_usart_up
  *
@@ -65,7 +68,7 @@ uint8_t full_duplex_usart_dma_up(void)
  * Notes:
  *
  */
-uint8_t full_duplex_usart_dma_init(GenericPacketCallack gp_handler)
+uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler)
 {
    uint8_t fail = 0;
    uint8_t retval;
@@ -200,12 +203,42 @@ void full_duplex_usart_dma_service_rx(void)
  *
  * Notes:
  *  +This function sends out all packets that are currently in the queue.
+ *  +This is currently being called from main...outside of an interrupt...
+ *   That has some advantages but some drawbacks.  I can think of two
+ *   alternatives:
+ *   a) Have a timer interrupt in here that will kick off subsequent
+ *      transfers so that this function kicks off one transfer and
+ *      doesn't block.
+ *   b) Have the DMAx_Streamy TC interrupt kick off the next transfer
+ *      if one is available.  Then it is only the beginning of the
+ *      first transfer that is kicked off from the main loop polling.
+ *
+ *  Maybe this isn't a big deal, since in most cases there will only
+ *  be a packet or two waiting to be transmitted...But for now...this
+ *  function will spin until everything has been sent.  That will burn
+ *  up clock cycles that could be taking care of other things.
  */
 void full_duplex_usart_dma_service_tx(void)
 {
    if(full_duplex_usart_dma_initialized)
    {
-
+      /* We can't kick this off from here again until the previous chain of
+       * transmits is complete.
+       */
+      if(!fdud_txq_cb_mutex)
+      {
+         if(fdud_txq_cb.head != fdud_txq_cb.tail)
+         {
+            fdud_txq_cb_mutex = 1;
+            fdud_txq_cb.tail++;
+            if(fdud_txq_cb.tail >= fdud_txq_cb.size)
+            {
+               fdud_txq_cb.tail = 0;
+            }
+            /* This function will use the current tail. */
+            full_duplex_usart_dma_write();
+         }
+      }
    }
 }
 
@@ -235,12 +268,9 @@ uint8_t full_duplex_usart_dma_get_rx_packet(GenericPacket *gp_ptr)
       /* Or... while(gpcb_increment_tail(&fdud_rx_gpcb) == GP_CIRC_BUFFER_SUCCESS)
        * or...maybe not...need to post increment here...
        */
-      while(fdud_rx_gpcb.gpcb_tail != fdud_rx_gpcb.gpcb_head)
+      while(gpcb_increment_tail(&fdud_rx_gpcb) == GP_CIRC_BUFFER_SUCCESS)
       {
          fdud_gp_handler(&(fdud_rx_gpcb.gpcb[fdud_rx_gpcb.gpcb_tail]));
-
-         retval = gpcb_increment_tail(&fdud_rx_gpcb);
-
       }
    }
 }
@@ -372,7 +402,7 @@ void DMA2_Stream7_IRQHandler(void)
    {
       /* I believe this condition should already be met...or we woudln't
        * be here. */
-      while (DMA_GetFlagStatus(DMA2_Stream7, DMA_FLAG_TCIF6)==RESET);
+      while (DMA_GetFlagStatus(DMA2_Stream7, DMA_FLAG_TCIF7)==RESET);
       /* DMA has done it's job...but the last byte may not have been sent via
        * the USART hardware.  We might not need to poll for it here...but it
        * is quick and keeps us on the safe side.
@@ -380,7 +410,27 @@ void DMA2_Stream7_IRQHandler(void)
       while (USART_GetFlagStatus(USART1, USART_FLAG_TC)==RESET);
 
       /* Put code to notify the orignator that the packet has been sent here! */
-
+      if(fdud_txq_cb.fdud_txqs_ptr[fdud_txq_cb.tail].cb != NULL)
+      {
+         fdud_txq_cb.fdud_txqs_ptr[fdud_txq_cb.tail].cb(fdud_txq_cb.fdud_txqs_ptr[fdud_txq_cb.tail].cb_data);
+      }
+      /* Increment the tail */
+      if(fdud_txq_cb.head != fdud_txq_cb.tail)
+      {
+         fdud_txq_cb.tail++;
+         if(fdud_txq_cb.tail >= fdud_txq_cb.size)
+         {
+            fdud_txq_cb.tail = 0;
+         }
+         /* Call for the next packet to be sent if there are more waiting. */
+         /* This function uses the current tail. */
+         full_duplex_usart_dma_write();
+      }
+      else
+      {
+         /* It is now safe for the main program to kick off another transfer. */
+         fdud_txq_cb_mutex = 0;
+      }
 
       /* Disable everything, we will turn it back on when we are ready to send
        * the next packet.
@@ -394,7 +444,7 @@ void DMA2_Stream7_IRQHandler(void)
        * case we will not have another interrupt being generated while we are in
        * here...so I don't think it matters.
        */
-      DMA_ClearITPendingBit(DMA1_Stream6, DMA_IT_TCIF6);
+      DMA_ClearITPendingBit(DMA2_Stream7, DMA_IT_TCIF7);
    }
 }
 
@@ -403,6 +453,41 @@ void full_duplex_usart_dma_write(void)
 {
    if(full_duplex_usart_dma_initialized)
    {
+      /* Under the current version of the code...we shouldn't get back here
+       * until all previous transmits are complete...  If we do...I guess
+       * we'll chop off the last part of that packet.
+       */
+      /* /\* If a transmit was already underway, you wouldn't need to do this. */
+      /*  * However, if one isn't, we would hang checking the flags below... */
+      /*  * So...just do this to be safe. */
+      /*  *\/ */
+      /* /\* Enable USART DMA TX Requsts *\/ */
+      /* USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE); */
+      /* /\* Enable the DMA *\/ */
+      /* DMA_Cmd(DMA2_Stream7, ENABLE); */
 
+      /* /\* /\\* Wait for any previous transfer to complete. *\\/ *\/ */
+      /* while (USART_GetFlagStatus(USART1, USART_FLAG_TC)==RESET); */
+      /* while (DMA_GetFlagStatus(DMA2_Stream7, DMA_FLAG_TCIF7)==RESET); */
+
+      /* Disable the DMA */
+      DMA_Cmd(DMA2_Stream7, DISABLE);
+      /* Disable USART DMA TX Requsts */
+      USART_DMACmd(USART1, USART_DMAReq_Tx, DISABLE);
+
+      /* Clear DMA Transfer Complete Flags */
+      DMA_ClearFlag(DMA2_Stream7, DMA_FLAG_TCIF7);
+      /* Clear USART Transfer Complete Flags */
+      USART_ClearFlag(USART1, USART_FLAG_TC);
+
+      /* Set the length of data to transmit. */
+      DMA2_Stream7->NDTR = fdud_txq_cb.fdud_txqs_ptr[fdud_txq_cb.tail].gp_ptr->packet_length;
+      /* Set the pointer to the data. */
+      DMA2_Stream7->M0AR = (uint32_t)(fdud_txq_cb.fdud_txqs_ptr[fdud_txq_cb.tail].gp_ptr->gp);
+
+      /* Enable USART DMA TX Requsts */
+      USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);
+      /* Enable the DMA */
+      DMA_Cmd(DMA2_Stream7, ENABLE);
    }
 }
