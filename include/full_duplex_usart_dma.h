@@ -56,7 +56,8 @@ uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler);
 void full_duplex_usart_dma_service(void);
 uint8_t full_duplex_usart_dma_add_to_queue(GenericPacket *gp_ptr, FDUD_TxQueueCallback callback_func, uint32_t callback_data);
 
-uint8_t full_duplex_usart_dma_get_rx_packet(GenericPacket *gp_ptr);
+/* Should go away now that there is a handler/callback function... */
+uint8_t full_duplex_usart_dma_get_rx_packet(void);
 
 
 #endif

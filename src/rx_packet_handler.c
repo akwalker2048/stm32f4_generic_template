@@ -1,4 +1,5 @@
 #include "rx_packet_handler.h"
+#include "hardware_STM32F407G_DISC1.h"
 
 GenericPacketCircularBuffer gpcbs_rx_gp_queue;
 GenericPacket rx_gp_queue[RX_PACKET_HANDLER_GP_QUEUE_SIZE];
@@ -42,6 +43,16 @@ void rx_packet_handler(GenericPacket *gp_ptr)
    uint8_t retval_fdud;
    uint8_t retval;
    float proportional, integral, derivative;
+
+   /* /\* At least figure out if we got here... *\/ */
+   /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_RED) == Bit_SET) */
+   /* { */
+   /*    GPIO_ResetBits(GPIOD, LED_PIN_RED); */
+   /* } */
+   /* else */
+   /* { */
+   /*    GPIO_SetBits(GPIOD, LED_PIN_RED); */
+   /* } */
 
    if(rx_packet_handler_initialized)
    {

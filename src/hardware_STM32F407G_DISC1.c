@@ -4,6 +4,8 @@
 #include "tilt_motor_control.h"
 #include "quad_encoder.h"
 
+#include "full_duplex_usart_dma.h"
+
 /* Global variable for handling USART so that whole packets are sent at a
  * a time.  In the future, I need to just add a function that is in this
  * file that controls all packet sending.  Maybe implement a circular
@@ -606,42 +608,44 @@ void SysTick_Handler(void)
 
    ii++;
 
-   /* Check USART DMA Receive Circular Buffer */
-   dma_rx_buffer_head = (DMA_RX_BUFFER_SIZE - DMA2_Stream5->NDTR);
-   /* ustr_ii = 0; */
-   while(dma_rx_buffer_tail != dma_rx_buffer_head)
-   {
+   full_duplex_usart_dma_service();
 
-      rx_buffer[rx_buffer_head] = usart_dma_rx_buffer[dma_rx_buffer_tail];
-      rx_buffer_head++;
-      if(rx_buffer_head >= RX_BUFFER_SIZE)
-      {
-         rx_buffer_head = 0;
-      }
+   /* /\* Check USART DMA Receive Circular Buffer *\/ */
+   /* dma_rx_buffer_head = (DMA_RX_BUFFER_SIZE - DMA2_Stream5->NDTR); */
+   /* /\* ustr_ii = 0; *\/ */
+   /* while(dma_rx_buffer_tail != dma_rx_buffer_head) */
+   /* { */
 
-      dma_rx_buffer_tail++;
-      if(dma_rx_buffer_tail >= DMA_RX_BUFFER_SIZE)
-      {
-         dma_rx_buffer_tail = 0;
-      }
-   }
+   /*    rx_buffer[rx_buffer_head] = usart_dma_rx_buffer[dma_rx_buffer_tail]; */
+   /*    rx_buffer_head++; */
+   /*    if(rx_buffer_head >= RX_BUFFER_SIZE) */
+   /*    { */
+   /*       rx_buffer_head = 0; */
+   /*    } */
+
+   /*    dma_rx_buffer_tail++; */
+   /*    if(dma_rx_buffer_tail >= DMA_RX_BUFFER_SIZE) */
+   /*    { */
+   /*       dma_rx_buffer_tail = 0; */
+   /*    } */
+   /* } */
 
 
-   /* if(ms_counter%(2000) == 0) */
-   if((ms_counter + lepton_phase_offset)%(185) == 0)
-   {
-      /* Kick off one frame grab. */
-      if(grab_frame == 2)
-      {
-         grab_frame = 1;
-      }
+   /* /\* if(ms_counter%(2000) == 0) *\/ */
+   /* if((ms_counter + lepton_phase_offset)%(185) == 0) */
+   /* { */
+   /*    /\* Kick off one frame grab. *\/ */
+   /*    if(grab_frame == 2) */
+   /*    { */
+   /*       grab_frame = 1; */
+   /*    } */
 
-      if(grab_frame == 3)
-      {
-         grab_frame = 2;
-      }
+   /*    if(grab_frame == 3) */
+   /*    { */
+   /*       grab_frame = 2; */
+   /*    } */
 
-   }
+   /* } */
 
 
    /* tilt_motor_get_angle(&current_tilt_position); */
@@ -678,18 +682,18 @@ void SysTick_Handler(void)
 
    /* } */
 
-   if(ms_counter%100 == 0)
-   {
+   /* if(ms_counter%100 == 0) */
+   /* { */
 
-      temp_head = ts_circ_buffer_head + 1;
-      if(temp_head >= TS_CIRC_BUFFER_SIZE)
-      {
-         temp_head = 0;
-      }
-      create_universal_timestamp((GenericPacket *)&ts_circ_buffer[temp_head], ms_counter);
-      ts_circ_buffer_head = temp_head;
+   /*    temp_head = ts_circ_buffer_head + 1; */
+   /*    if(temp_head >= TS_CIRC_BUFFER_SIZE) */
+   /*    { */
+   /*       temp_head = 0; */
+   /*    } */
+   /*    create_universal_timestamp((GenericPacket *)&ts_circ_buffer[temp_head], ms_counter); */
+   /*    ts_circ_buffer_head = temp_head; */
 
-   }
+   /* } */
 
 
 
@@ -701,13 +705,13 @@ void SysTick_Handler(void)
       if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET)
       {
          GPIO_ResetBits(GPIOD, LED_PIN_GREEN);
-         GPIO_SetBits(GPIOD, LED_PIN_BLUE);
+         /* GPIO_SetBits(GPIOD, LED_PIN_BLUE); */
 
       }
       else
       {
          GPIO_SetBits(GPIOD, LED_PIN_GREEN);
-         GPIO_ResetBits(GPIOD, LED_PIN_BLUE);
+         /* GPIO_ResetBits(GPIOD, LED_PIN_BLUE); */
 
       }
 
@@ -719,25 +723,25 @@ void SysTick_Handler(void)
 
 
 
-void USART1_IRQHandler(void)
-{
-   uint16_t tchar;
+/* void USART1_IRQHandler(void) */
+/* { */
+/*    uint16_t tchar; */
 
-   if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
-   {
-      /* Read one byte from the receive data register */
-      rx_buffer[rx_buffer_head] = (uint8_t)(USART_ReceiveData(USART1) & 0x7F);
-      rx_buffer_head++;
-      if(rx_buffer_head >= RX_BUFFER_SIZE)
-      {
-         rx_buffer_head = 0;
-      }
-      /* Echo what we just got! */
-      /* USART_SendData(USART3, tchar); */
-      /* usart_write_byte((uint8_t)tchar); */
-   }
+/*    if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET) */
+/*    { */
+/*       /\* Read one byte from the receive data register *\/ */
+/*       rx_buffer[rx_buffer_head] = (uint8_t)(USART_ReceiveData(USART1) & 0x7F); */
+/*       rx_buffer_head++; */
+/*       if(rx_buffer_head >= RX_BUFFER_SIZE) */
+/*       { */
+/*          rx_buffer_head = 0; */
+/*       } */
+/*       /\* Echo what we just got! *\/ */
+/*       /\* USART_SendData(USART3, tchar); *\/ */
+/*       /\* usart_write_byte((uint8_t)tchar); *\/ */
+/*    } */
 
-}
+/* } */
 
 
 

@@ -98,9 +98,11 @@ int main(void)
    init_systick();
    init_adc();
 
-   /* Cannot RS485 and Tilt!!!! Pin A2 */
-   rs485_sensor_bus_init_master();
-   rs485_sensor_bus_init_slave();
+   /* /\* Cannot RS485 and Tilt!!!! Pin A2 *\/ */
+   /* rs485_sensor_bus_init_master(); */
+   /* rs485_sensor_bus_init_slave(); */
+
+
    /* Cannot RS485 and Tilt!!!! Pin A2 */
    /* tilt_motor_init(); */
 
@@ -119,7 +121,7 @@ int main(void)
       /*    grab_frame = 3; */
       /* } */
 
-      process_rx_buffer();
+      /* process_rx_buffer(); */
 
       /* write_timestamps(); */
 
@@ -130,13 +132,26 @@ int main(void)
       /* process_usart3_buffer(); */
 
 
-      rs485_master_process_rx_ram();
-      rs485_master_handle_packets();
-      /* rs485_write_outgoing_master(); */
+      /* rs485_master_process_rx_ram(); */
+      /* rs485_master_handle_packets(); */
+      /* /\* rs485_write_outgoing_master(); *\/ */
 
-      rs485_slave_process_rx_ram();
-      rs485_slave_handle_packets();
-      /* rs485_write_outgoing_slave(); */
+      /* rs485_slave_process_rx_ram(); */
+      /* rs485_slave_handle_packets(); */
+      /* /\* rs485_write_outgoing_slave(); *\/ */
+
+      /* At least figure out if we got here... */
+      if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET)
+      {
+         GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);
+      }
+      else
+      {
+         GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
+      }
+
+
+      /* full_duplex_usart_dma_service(); */
 
 
       /* tilt_motor_get_angle(&pos_rad); */
@@ -197,6 +212,7 @@ void assert_failed(uint8_t* file, uint32_t line)
 {
    /* User can add his own implementation to report the file name and line number,
       ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+
 
    /* Infinite loop */
    while (1)

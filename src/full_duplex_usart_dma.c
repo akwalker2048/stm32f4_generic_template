@@ -23,6 +23,11 @@
 
 #include "gp_circular_buffer.h"
 
+
+#include "hardware_STM32F407G_DISC1.h"
+
+
+
 /* Private Defines */
 
 /* Private Variables */
@@ -30,9 +35,9 @@ uint8_t full_duplex_usart_dma_initialized = 0;
 
 GenericPacketCallback fdud_gp_handler = NULL;
 
-uint8_t full_duplex_usart_dma_tx_buffer[FDUD_TX_DMA_SIZE];
-uint8_t full_duplex_usart_dma_rx_buffer[FDUD_RX_DMA_SIZE];
-uint16_t full_duplex_usart_dma_rx_buffer_tail = 0;
+volatile uint8_t full_duplex_usart_dma_tx_buffer[FDUD_TX_DMA_SIZE];
+volatile uint8_t full_duplex_usart_dma_rx_buffer[FDUD_RX_DMA_SIZE];
+volatile uint16_t full_duplex_usart_dma_rx_buffer_tail = 0;
 
 FDUD_TxQueue_Struct fdud_txqs[FDUD_TX_QUEUE_SIZE];
 FDUD_TxQueue_CB_Struct fdud_txq_cb;
@@ -43,11 +48,21 @@ GenericPacket fdud_rx[FDUD_RX_QUEUE_SIZE];
 GenericPacketCircularBuffer fdud_rx_gpcb;
 
 
+GenericPacket gp_debug;
+GenericPacket gp_debug_out;
+GenericPacket gp_debug_two;
+
+GenericPacket gp_received_bytes;
+uint8_t received_bytes[0xFB];
+uint8_t received_bytes_index = 0;
+volatile uint8_t received_bytes_sending = 0;
+
 /* Private Functions */
 void full_duplex_usart_dma_communications_init(void);
 void full_duplex_usart_dma_service_rx(void);
 void full_duplex_usart_dma_service_tx(void);
 void full_duplex_usart_dma_write(void);
+void reset_received_bytes_sending(uint32_t cb_data);
 
 /* PUBLIC full_duplex_usart_up
  *
@@ -87,6 +102,8 @@ uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler)
       fail = 1;
    }
 
+   retval = gp_receive_byte(0x00, GP_CONTROL_INITIALIZE, &gp_debug);
+
    /* Set the Callback Function Pointer */
    fdud_gp_handler = gp_handler;
 
@@ -101,6 +118,12 @@ uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler)
    /* We're Up */
    full_duplex_usart_dma_initialized = 1;
 
+   /* Put something in the outgoing queue to see if it is working. */
+   create_universal_ack(&gp_debug_out);
+   full_duplex_usart_dma_add_to_queue(&gp_debug_out, NULL, 0);
+   create_universal_timestamp(&gp_debug_two, 0x1234);
+   full_duplex_usart_dma_add_to_queue(&gp_debug_two, NULL, 0);
+
    return FDUD_SUCCESS;
 }
 
@@ -113,10 +136,31 @@ uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler)
  */
 void full_duplex_usart_dma_service(void)
 {
+
    full_duplex_usart_dma_service_rx();
+   while(received_bytes_sending);
+   if(received_bytes_index > 44)
+   {
+      received_bytes_sending = 1;
+      create_universal_byte_array(&gp_received_bytes, received_bytes, (received_bytes_index - 1));
+      asm("DSB");
+      full_duplex_usart_dma_add_to_queue(&gp_received_bytes, reset_received_bytes_sending, 0);
+      received_bytes_index = 0;
+   }
+
+   full_duplex_usart_dma_get_rx_packet();
+
    full_duplex_usart_dma_service_tx();
+
+
    /* Call packet handling fucntion for all received and valid packets? */
 
+}
+
+
+void reset_received_bytes_sending(uint32_t cb_data)
+{
+   received_bytes_sending = 0;
 }
 
 /* PUBLIC full_duplex_usart_dma_add_to_queue
@@ -177,23 +221,81 @@ void full_duplex_usart_dma_service_rx(void)
 {
    uint16_t dma_head;
    uint8_t retval_gpcb;
+   uint8_t retval;
 
    if(full_duplex_usart_dma_initialized)
    {
+
+
       retval_gpcb = GP_CIRC_BUFFER_SUCCESS;
+
+
       dma_head = (FDUD_RX_DMA_SIZE - DMA2_Stream5->NDTR);
-      while((full_duplex_usart_dma_rx_buffer_tail != dma_head)&&(retval_gpcb == GP_CIRC_BUFFER_SUCCESS))
+      /* while((full_duplex_usart_dma_rx_buffer_tail != dma_head)&&(retval_gpcb == GP_CIRC_BUFFER_SUCCESS)) */
+      while(full_duplex_usart_dma_rx_buffer_tail != dma_head)
       {
+
+         /* At least figure out if we got here... */
+         if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_RED) == Bit_SET)
+         {
+            GPIO_ResetBits(GPIOD, LED_PIN_RED);
+         }
+         else
+         {
+            GPIO_SetBits(GPIOD, LED_PIN_RED);
+         }
+
+         /* Temporary while I figure out gpcb... */
+         received_bytes[received_bytes_index] = full_duplex_usart_dma_rx_buffer[full_duplex_usart_dma_rx_buffer_tail];
+         if(received_bytes_index < 0xFB)
+         {
+            received_bytes_index++;
+         }
+
+         /* retval = gp_receive_byte(full_duplex_usart_dma_rx_buffer[full_duplex_usart_dma_rx_buffer_tail], GP_CONTROL_RUN, &gp_debug); */
+
+
+         /* End Temp */
+
+
          retval_gpcb = gpcb_receive_byte((full_duplex_usart_dma_rx_buffer[full_duplex_usart_dma_rx_buffer_tail]), &fdud_rx_gpcb);
 
-         if(retval_gpcb == GP_CIRC_BUFFER_SUCCESS)
+         /* if((retval_gpcb == GP_CIRC_BUFFER_SUCCESS)||(retval_gpcb == GP_CHECKSUM_MATCH)) */
+         /* { */
+         full_duplex_usart_dma_rx_buffer_tail++;
+         if(full_duplex_usart_dma_rx_buffer_tail >= FDUD_RX_DMA_SIZE)
          {
-            full_duplex_usart_dma_rx_buffer_tail++;
-            if(full_duplex_usart_dma_rx_buffer_tail >= FDUD_RX_DMA_SIZE)
-            {
-               full_duplex_usart_dma_rx_buffer_tail = 0;
-            }
+            full_duplex_usart_dma_rx_buffer_tail = 0;
          }
+         /* } */
+
+         if(retval == /* GP_ERROR_CHECKSUM_MISMATCH */ GP_CHECKSUM_MATCH)
+         /* if(retval) */
+         {
+            if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_BLUE) == Bit_SET)
+            {
+               GPIO_ResetBits(GPIOD, LED_PIN_BLUE);
+            }
+            else
+            {
+               GPIO_SetBits(GPIOD, LED_PIN_BLUE);
+            }
+
+         }
+
+         /* else */
+         /* { */
+         /*    /\* At least figure out if we got here... *\/ */
+         /*    if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET) */
+         /*    { */
+         /*       GPIO_ResetBits(GPIOD, LED_PIN_GREEN); */
+         /*    } */
+         /*    else */
+         /*    { */
+         /*       GPIO_SetBits(GPIOD, LED_PIN_GREEN); */
+         /*    } */
+
+         /* } */
       }
    }
 
@@ -259,7 +361,7 @@ void full_duplex_usart_dma_service_tx(void)
  *   pointer to the handler function at init time...and I can call that
  *   function with the next valid packet when I find it?
  */
-uint8_t full_duplex_usart_dma_get_rx_packet(GenericPacket *gp_ptr)
+uint8_t full_duplex_usart_dma_get_rx_packet(void)
 {
    uint8_t retval;
 
@@ -352,7 +454,8 @@ void full_duplex_usart_dma_communications_init(void)
    DMA_InitStructure.DMA_Channel = DMA_Channel_4;
    DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory;
    DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)full_duplex_usart_dma_rx_buffer;
-   DMA_InitStructure.DMA_BufferSize = (uint16_t)sizeof(full_duplex_usart_dma_rx_buffer);
+   /* DMA_InitStructure.DMA_BufferSize = (uint16_t)sizeof(full_duplex_usart_dma_rx_buffer); */
+   DMA_InitStructure.DMA_BufferSize = (uint16_t)FDUD_RX_DMA_SIZE;
    DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t) (&(USART1->DR));
    DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
    DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
@@ -386,6 +489,7 @@ void full_duplex_usart_dma_communications_init(void)
    /* We won't enable this until we transmit a packet. */
    DMA_ITConfig(DMA2_Stream7, DMA_IT_TC, DISABLE);
 
+
 }
 
 
@@ -409,6 +513,24 @@ void DMA2_Stream7_IRQHandler(void)
        */
       while (USART_GetFlagStatus(USART1, USART_FLAG_TC)==RESET);
 
+      /* Not sure whether this should go at the beginning or the end.  In this
+       * case we will not have another interrupt being generated while we are in
+       * here...so I don't think it matters.
+       *
+       * If we're goinig to call full_duplex_usart_dma_write() from within this
+       * function, we need to have already cleared this bit.  Calling that
+       * function will result in a new TC interrupt being set.
+       */
+      DMA_ClearITPendingBit(DMA2_Stream7, DMA_IT_TCIF7);
+
+      /* Disable everything, we will turn it back on when we are ready to send
+       * the next packet.
+       */
+      /* Disable the DMA */
+      DMA_Cmd(DMA2_Stream7, DISABLE);
+      /* Disable USART DMA TX Requsts */
+      USART_DMACmd(USART1, USART_DMAReq_Tx, DISABLE);
+
       /* Put code to notify the orignator that the packet has been sent here! */
       if(fdud_txq_cb.fdud_txqs_ptr[fdud_txq_cb.tail].cb != NULL)
       {
@@ -424,6 +546,8 @@ void DMA2_Stream7_IRQHandler(void)
          }
          /* Call for the next packet to be sent if there are more waiting. */
          /* This function uses the current tail. */
+         /* Is it really OK to put this here.  Once the next write happens, it
+          * will trigger this TC Interrupt...maybe before we're done??? */
          full_duplex_usart_dma_write();
       }
       else
@@ -432,19 +556,7 @@ void DMA2_Stream7_IRQHandler(void)
          fdud_txq_cb_mutex = 0;
       }
 
-      /* Disable everything, we will turn it back on when we are ready to send
-       * the next packet.
-       */
-      /* Disable the DMA */
-      DMA_Cmd(DMA2_Stream7, DISABLE);
-      /* Disable USART DMA TX Requsts */
-      USART_DMACmd(USART1, USART_DMAReq_Tx, DISABLE);
 
-      /* Not sure whether this should go at the beginning or the end.  In this
-       * case we will not have another interrupt being generated while we are in
-       * here...so I don't think it matters.
-       */
-      DMA_ClearITPendingBit(DMA2_Stream7, DMA_IT_TCIF7);
    }
 }
 
@@ -484,6 +596,10 @@ void full_duplex_usart_dma_write(void)
       DMA2_Stream7->NDTR = fdud_txq_cb.fdud_txqs_ptr[fdud_txq_cb.tail].gp_ptr->packet_length;
       /* Set the pointer to the data. */
       DMA2_Stream7->M0AR = (uint32_t)(fdud_txq_cb.fdud_txqs_ptr[fdud_txq_cb.tail].gp_ptr->gp);
+
+      /* Enable Transmit Complete Interrupt */
+      DMA_ITConfig(DMA2_Stream7, DMA_IT_TC, ENABLE);
+
 
       /* Enable USART DMA TX Requsts */
       USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);
