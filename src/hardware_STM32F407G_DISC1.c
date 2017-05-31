@@ -608,7 +608,7 @@ void SysTick_Handler(void)
 
    ii++;
 
-   full_duplex_usart_dma_service();
+   /* full_duplex_usart_dma_service(); */
 
    /* /\* Check USART DMA Receive Circular Buffer *\/ */
    /* dma_rx_buffer_head = (DMA_RX_BUFFER_SIZE - DMA2_Stream5->NDTR); */

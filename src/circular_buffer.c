@@ -49,10 +49,14 @@ uint8_t cb_get_byte(circular_buffer_t *cb, uint8_t *byte)
 {
    uint8_t retval;
 
-   retval = cb_increment_tail(cb);
-   if(retval == CB_SUCCESS)
+   if(cb->cb_head != cb->cb_tail)
    {
-      *byte = cb->cb_data[cb->cb_tail];
+         *byte = cb->cb_data[cb->cb_tail];
+         retval = cb_increment_tail(cb);
+   }
+   else
+   {
+      retval = CB_ERROR_TAIL_CAUGHT_HEAD;
    }
 
    return retval;

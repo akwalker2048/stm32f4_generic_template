@@ -62,6 +62,7 @@ void full_duplex_usart_dma_communications_init(void);
 void full_duplex_usart_dma_service_rx(void);
 void full_duplex_usart_dma_service_tx(void);
 void full_duplex_usart_dma_write(void);
+void full_duplex_usart_dma_init_state_machine(void);
 void reset_received_bytes_sending(uint32_t cb_data);
 
 /* PUBLIC full_duplex_usart_up
@@ -109,6 +110,7 @@ uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler)
 
    /* Init Hardware */
    full_duplex_usart_dma_communications_init();
+   full_duplex_usart_dma_init_state_machine();
 
    if(fail != 0)
    {
@@ -127,6 +129,65 @@ uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler)
    return FDUD_SUCCESS;
 }
 
+
+void TIM8_BRK_TIM12_IRQHandler(void)
+{
+   GenericPacket packet_query;
+   uint8_t retval;
+
+   if(TIM_GetITStatus(TIM12, TIM_IT_Update) != RESET)
+   {
+      /* See if we can service the circular buffer in here!
+       *
+       * May decide to make this a more involved state machine later...but for
+       * now...well just service the single state of "handle the DMA buffer".
+       */
+      full_duplex_usart_dma_service();
+
+      TIM_ClearITPendingBit(TIM12, TIM_IT_Update);
+   }
+
+}
+
+
+void full_duplex_usart_dma_init_state_machine(void)
+{
+   TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+   NVIC_InitTypeDef   NVIC_InitStructure;
+
+   uint32_t TimerPeriod = 0;
+
+   /* Turn the timer clock on! */
+   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM12, ENABLE);
+
+   /* TIM12 on APB1 runs at SystemCoreClock/2.  The factor of 2 in the denominator
+    * in this case is because APB1 runs at half of SystemCoreClock.
+    */
+   TimerPeriod = (SystemCoreClock / (FULL_DUPLEX_USART_SM_HZ * 2)) - 1;
+
+   /* Time Base configuration */
+   TIM_TimeBaseStructure.TIM_Prescaler = 0;
+   TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+   TIM_TimeBaseStructure.TIM_Period = TimerPeriod;
+   TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+   TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
+
+   TIM_TimeBaseInit(TIM10, &TIM_TimeBaseStructure);
+
+   /* Set up interrupt. */
+   NVIC_InitStructure.NVIC_IRQChannel = TIM8_BRK_TIM12_IRQn;
+   NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x00;
+   NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x01;
+   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+   NVIC_Init(&NVIC_InitStructure);
+
+   TIM_ITConfig(TIM12, TIM_IT_Update, ENABLE);
+
+   TIM_Cmd(TIM12, ENABLE);
+
+}
+
+
 /* PUBLIC full_duplex_usart_dma_service(void)
  *
  * Notes:
@@ -138,15 +199,15 @@ void full_duplex_usart_dma_service(void)
 {
 
    full_duplex_usart_dma_service_rx();
-   while(received_bytes_sending);
-   if(received_bytes_index > 44)
-   {
-      received_bytes_sending = 1;
-      create_universal_byte_array(&gp_received_bytes, received_bytes, (received_bytes_index - 1));
-      asm("DSB");
-      full_duplex_usart_dma_add_to_queue(&gp_received_bytes, reset_received_bytes_sending, 0);
-      received_bytes_index = 0;
-   }
+   /* while(received_bytes_sending); */
+   /* if(received_bytes_index > 44) */
+   /* { */
+   /*    received_bytes_sending = 1; */
+   /*    create_universal_byte_array(&gp_received_bytes, received_bytes, (received_bytes_index - 1)); */
+   /*    asm("DSB"); */
+   /*    full_duplex_usart_dma_add_to_queue(&gp_received_bytes, reset_received_bytes_sending, 0); */
+   /*    received_bytes_index = 0; */
+   /* } */
 
    full_duplex_usart_dma_get_rx_packet();
 
@@ -246,11 +307,11 @@ void full_duplex_usart_dma_service_rx(void)
          }
 
          /* Temporary while I figure out gpcb... */
-         received_bytes[received_bytes_index] = full_duplex_usart_dma_rx_buffer[full_duplex_usart_dma_rx_buffer_tail];
-         if(received_bytes_index < 0xFB)
-         {
-            received_bytes_index++;
-         }
+         /* received_bytes[received_bytes_index] = full_duplex_usart_dma_rx_buffer[full_duplex_usart_dma_rx_buffer_tail]; */
+         /* if(received_bytes_index < 0xFB) */
+         /* { */
+         /*    received_bytes_index++; */
+         /* } */
 
          /* retval = gp_receive_byte(full_duplex_usart_dma_rx_buffer[full_duplex_usart_dma_rx_buffer_tail], GP_CONTROL_RUN, &gp_debug); */
 

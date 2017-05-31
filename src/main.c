@@ -98,9 +98,9 @@ int main(void)
    init_systick();
    init_adc();
 
-   /* /\* Cannot RS485 and Tilt!!!! Pin A2 *\/ */
-   /* rs485_sensor_bus_init_master(); */
-   /* rs485_sensor_bus_init_slave(); */
+   /* Cannot RS485 and Tilt!!!! Pin A2 */
+   rs485_sensor_bus_init_master();
+   rs485_sensor_bus_init_slave();
 
 
    /* Cannot RS485 and Tilt!!!! Pin A2 */
@@ -132,12 +132,12 @@ int main(void)
       /* process_usart3_buffer(); */
 
 
-      /* rs485_master_process_rx_ram(); */
-      /* rs485_master_handle_packets(); */
+      rs485_master_process_rx_ram();
+      rs485_master_handle_packets();
       /* /\* rs485_write_outgoing_master(); *\/ */
 
-      /* rs485_slave_process_rx_ram(); */
-      /* rs485_slave_handle_packets(); */
+      rs485_slave_process_rx_ram();
+      rs485_slave_handle_packets();
       /* /\* rs485_write_outgoing_slave(); *\/ */
 
       /* At least figure out if we got here... */

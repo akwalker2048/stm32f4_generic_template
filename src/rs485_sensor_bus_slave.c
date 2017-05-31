@@ -7,7 +7,8 @@
 #define GP_CIRC_BUFFER_SIZE 8
 #include "gp_circular_buffer.h"
 
-#include "hardware_STM32F407G_DISC1.h"
+#include "full_duplex_usart_dma.h"
+
 
 /* Buffers for raw data dma send and receive. */
 uint8_t rs485_slave_dma_tx_buffer[GP_MAX_PACKET_LENGTH];
@@ -29,6 +30,11 @@ volatile uint8_t rs485_slave_initialized = 0;
 rs485_master_states slave_state = RS485_SLAVE_INIT;
 uint32_t rs485_slave_state_timer = 0;
 
+GenericPacket gp_sensor_info;
+
+GenericPacket gp_debug_slave[20];
+uint8_t debug_slave_ii = 0;
+
 /* Sensor Bus Slave State Machine
  *
  * Do I need the __attribute__("bank_switch") since I have a function call in here?
@@ -48,6 +54,8 @@ void TIM1_UP_TIM10_IRQHandler(void)
        * of the interrupt.  We don't want to take too long in here.
        */
       rs485_slave_process_rx_dma();
+      /* rs485_slave_process_rx_ram(); */
+      /* rs485_slave_handle_packets(); */
 
       switch(slave_state)
       {
@@ -357,6 +365,8 @@ void rs485_slave_write_dma(uint8_t *data, uint32_t length)
       /* Set the pointer to the data. */
       DMA2_Stream6->M0AR = (uint32_t)data;
 
+      DMA_ITConfig(DMA2_Stream6, DMA_IT_TC, ENABLE);
+
       /* Enable USART DMA TX Requsts */
       USART_DMACmd(USART6, USART_DMAReq_Tx, ENABLE);
       /* Enable the DMA */
@@ -380,6 +390,17 @@ void rs485_slave_process_rx_dma(void)
          if(retval == CB_SUCCESS)
          {
             retval = cb_add_byte(&cb_slave_ram_rx, rx_byte);
+
+            /* create_universal_byte(&(gp_debug_slave[debug_slave_ii]), rx_byte); */
+            /* /\* AWALKER - Need to add a callback to know when this */
+            /*  * packet is free to use again. */
+            /*  *\/ */
+            /* full_duplex_usart_dma_add_to_queue(&(gp_debug_slave[debug_slave_ii]), NULL, 0); */
+            /* debug_slave_ii++; */
+            /* if(debug_slave_ii >= 20) */
+            /* { */
+            /*    debug_slave_ii = 0; */
+            /* } */
          }
       }while(retval == CB_SUCCESS);
    }
@@ -393,7 +414,7 @@ void rs485_slave_process_rx_ram(void)
    uint8_t rx_byte;
 
    uint8_t retval_debug;
-   GenericPacket gp_debug;
+   /* GenericPacket gp_debug; */
 
    do{
       retval = cb_get_byte(&cb_slave_ram_rx, &rx_byte);
@@ -405,19 +426,32 @@ void rs485_slave_process_rx_ram(void)
 
          /* for debug */
 
-         /* retval_debug = create_universal_byte(&gp_debug, 0x08); */
-         create_universal_byte(&gp_debug, retval_gpcb);
-         if(retval_debug == GP_SUCCESS)
-         {
-            /* I don't think I need these...I think my communication issue is
-             * because I am creating the next packet before this one has
-             * finished writing.  Need to create a circular buffer here.
-             */
-            /* asm("DMB"); /\* Data Memory Barrier *\/ */
-            /* asm("DSB"); /\* Data Synchronization Barrier *\/ */
-            /* asm("ISB"); /\* Instruction Synchronization Barrier. *\/ */
-            usart_write_dma(gp_debug.gp, gp_debug.packet_length);
-         }
+         /* create_universal_byte(&(gp_debug_slave[debug_slave_ii]), retval_gpcb); */
+         /* /\* AWALKER - Need to add a callback to know when this */
+         /*  * packet is free to use again. */
+         /*  *\/ */
+         /* full_duplex_usart_dma_add_to_queue(&(gp_debug_slave[debug_slave_ii]), NULL, 0); */
+         /* debug_slave_ii++; */
+         /* if(debug_slave_ii >= 20) */
+         /* { */
+         /*    debug_slave_ii = 0; */
+         /* } */
+
+
+
+         /* /\* retval_debug = create_universal_byte(&gp_debug, 0x08); *\/ */
+         /* create_universal_byte(&gp_debug, retval_gpcb); */
+         /* if(retval_debug == GP_SUCCESS) */
+         /* { */
+         /*    /\* I don't think I need these...I think my communication issue is */
+         /*     * because I am creating the next packet before this one has */
+         /*     * finished writing.  Need to create a circular buffer here. */
+         /*     *\/ */
+         /*    /\* asm("DMB"); /\\* Data Memory Barrier *\\/ *\/ */
+         /*    /\* asm("DSB"); /\\* Data Synchronization Barrier *\\/ *\/ */
+         /*    /\* asm("ISB"); /\\* Instruction Synchronization Barrier. *\\/ *\/ */
+         /*    usart_write_dma(gp_debug.gp, gp_debug.packet_length); */
+         /* } */
 
          /* if(retval_gpcb == GP_CHECKSUM_MATCH) */
          /* { */
@@ -441,7 +475,6 @@ void rs485_slave_handle_packets(void)
    uint8_t address, sensor_type;
    uint8_t retval_tail, retval;
    GenericPacket *gp_ptr;
-   GenericPacket gp_sensor_info;
    PoseIsh p;
 
 
@@ -449,8 +482,6 @@ void rs485_slave_handle_packets(void)
       retval_tail = gpcb_increment_tail(&gpcbs_slave_rx);
       if(retval_tail == GP_CIRC_BUFFER_SUCCESS)
       {
-
-
 
          gp_ptr = &(gpcbs_slave_rx.gpcb[gpcbs_slave_rx.gpcb_tail]);
          switch(gp_ptr->gp[GP_LOC_PROJ_ID])
@@ -462,6 +493,21 @@ void rs485_slave_handle_packets(void)
                      case RS485_QUERY_SENSOR_INFO:
                         {
                            retval = extract_rs485_query_sensor_info(gp_ptr, &address);
+
+                           /* create_universal_byte(&(gp_debug_slave[debug_slave_ii]), address); */
+                           /* /\* AWALKER - Need to add a callback to know when this */
+                           /*  * packet is free to use again. */
+                           /*  *\/ */
+                           /* full_duplex_usart_dma_add_to_queue(&(gp_debug_slave[debug_slave_ii]), NULL, 0); */
+                           /* debug_slave_ii++; */
+                           /* if(debug_slave_ii >= 20) */
+                           /* { */
+                           /*    debug_slave_ii = 0; */
+                           /* } */
+
+                           address = SLAVE_ADDRESS;
+
+
                            if((retval == GP_SUCCESS)&&(address == SLAVE_ADDRESS))
                            {
                               /* Send the response packet to the master. */
@@ -474,6 +520,7 @@ void rs485_slave_handle_packets(void)
                               retval = create_rs485_resp_sensor_info(&gp_sensor_info, RS485_ADDRESS_MASTER, RS485_SB_TYPE_PROXIMITY_SONAR, p);
                               if(retval == GP_SUCCESS)
                               {
+
                                  rs485_slave_write_dma(gp_sensor_info.gp, (gp_sensor_info.packet_length + GP_ALIGNMENT_PADDING));
                               }
                            }

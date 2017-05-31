@@ -3,7 +3,7 @@
 
 #include "gp_circular_buffer.h"
 
-#include "hardware_STM32F407G_DISC1.h"
+#include "full_duplex_usart_dma.h"
 
 /* Buffers for raw data dma send and receive. */
 /* This one is really just a place holder for initialization.  Probably don't
@@ -30,6 +30,11 @@ uint32_t rs485_master_state_timer = 0;
 
 volatile uint8_t response_received = 0;
 
+
+GenericPacket gp_debug_master[20];
+uint8_t debug_master_ii = 0;
+
+
 /* Sensor Bus Master State Machine
  *
  * Do I need the __attribute__("bank_switch") since I have a function call in here?
@@ -42,7 +47,7 @@ void TIM1_BRK_TIM9_IRQHandler(void)
    if(TIM_GetITStatus(TIM9, TIM_IT_Update) != RESET)
    {
 
-      GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
+      /* GPIO_SetBits(GPIOD, LED_PIN_ORANGE); */
 
       rs485_master_state_timer++;
 
@@ -50,6 +55,8 @@ void TIM1_BRK_TIM9_IRQHandler(void)
        * of the interrupt.  We don't want to take too long in here.
        */
       rs485_master_process_rx_dma();
+      /* rs485_master_process_rx_ram(); */
+      /* rs485_master_handle_packets(); */
 
       switch(master_state)
       {
@@ -114,7 +121,7 @@ void TIM1_BRK_TIM9_IRQHandler(void)
             break;
       } /* switch(master_state) */
 
-      GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);
+      /* GPIO_ResetBits(GPIOD, LED_PIN_ORANGE); */
 
       TIM_ClearITPendingBit(TIM9, TIM_IT_Update);
    }
@@ -447,6 +454,19 @@ void rs485_master_process_rx_dma(void)
          if(retval == CB_SUCCESS)
          {
             retval = cb_add_byte(&cb_master_ram_rx, rx_byte);
+
+            /* create_universal_byte(&(gp_debug_master[debug_master_ii]), rx_byte); */
+            /* /\* AWALKER - Need to add a callback to know when this */
+            /*  * packet is free to use again. */
+            /*  *\/ */
+            /* full_duplex_usart_dma_add_to_queue(&(gp_debug_master[debug_master_ii]), NULL, 0); */
+            /* debug_master_ii++; */
+            /* if(debug_master_ii >= 20) */
+            /* { */
+            /*    debug_master_ii = 0; */
+            /* } */
+
+
          }
       }while(retval == CB_SUCCESS);
    }
@@ -463,6 +483,18 @@ void rs485_master_process_rx_ram(void)
       if(retval == CB_SUCCESS)
       {
          retval_gpcb = gpcb_receive_byte(rx_byte, &gpcbs_master_rx);
+
+         /* create_universal_byte(&(gp_debug_master[debug_master_ii]), rx_byte); */
+         /* /\* AWALKER - Need to add a callback to know when this */
+         /*  * packet is free to use again. */
+         /*  *\/ */
+         /* full_duplex_usart_dma_add_to_queue(&(gp_debug_master[debug_master_ii]), NULL, 0); */
+         /* debug_master_ii++; */
+         /* if(debug_master_ii >= 20) */
+         /* { */
+         /*    debug_master_ii = 0; */
+         /* } */
+
       }
    }while((retval == CB_SUCCESS)&&(retval_gpcb = GP_CIRC_BUFFER_SUCCESS));
 
@@ -481,6 +513,9 @@ void rs485_master_handle_packets(void)
       if(retval_tail == GP_CIRC_BUFFER_SUCCESS)
       {
          gp_ptr = &(gpcbs_master_rx.gpcb[gpcbs_master_rx.gpcb_tail]);
+
+         full_duplex_usart_dma_add_to_queue(gp_ptr, NULL, 0);
+
          switch(gp_ptr->gp[GP_LOC_PROJ_ID])
          {
             case GP_PROJ_RS485_SB:
@@ -498,14 +533,19 @@ void rs485_master_handle_packets(void)
                      if((retval == GP_SUCCESS)&&(address == RS485_ADDRESS_MASTER))
                      {
 
-                        GPIO_SetBits(GPIOD, LED_PIN_RED);
+                        /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
 
                         response_received = 1;
                         /* Need to pass this data along to the ROS system. */
                         retval = create_rs485_resp_sensor_info(&gp_sensor_info, RS485_ADDRESS_BROADCAST, sensor_type, p);
                         if(retval == GP_SUCCESS)
                         {
-                           usart_write_dma(gp_sensor_info.gp, gp_sensor_info.packet_length);
+                           /* usart_write_dma(gp_sensor_info.gp, gp_sensor_info.packet_length); */
+
+                           /* AWALKER - Need to add a callback to know when this
+                            * packet is free to use again.
+                            */
+                           full_duplex_usart_dma_add_to_queue(&gp_sensor_info, NULL, 0);
                         }
                      }
                      break;

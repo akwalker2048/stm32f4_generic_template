@@ -17,6 +17,7 @@
 #define GLOBAL_VAR_FDUD extern
 #endif
 
+#define FULL_DUPLEX_USART_SM_HZ 1000
 
 /* Public Defines */
 #define FDUD_SUCCESS              0x00
