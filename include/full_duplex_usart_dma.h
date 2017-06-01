@@ -34,6 +34,7 @@
 /* Queue size is in # of GenericPackets */
 #define FDUD_RX_QUEUE_SIZE 32
 
+#define FDUD_RX_RAM_SIZE (4 * FDUD_RX_DMA_SIZE)
 
 /* Typedefs for Tx Queue Callback */
 typedef void (*FDUD_TxQueueCallback)(uint32_t callback_data);
@@ -57,8 +58,9 @@ uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler);
 void full_duplex_usart_dma_service(void);
 uint8_t full_duplex_usart_dma_add_to_queue(GenericPacket *gp_ptr, FDUD_TxQueueCallback callback_func, uint32_t callback_data);
 
-/* Should go away now that there is a handler/callback function... */
-uint8_t full_duplex_usart_dma_get_rx_packet(void);
 
+void full_duplex_usart_dma_service_rx(void);
+uint8_t full_duplex_usart_dma_get_rx_packet(void);
+void full_duplex_usart_dma_service_tx(void);
 
 #endif

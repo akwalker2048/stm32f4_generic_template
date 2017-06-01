@@ -23,6 +23,7 @@
 
 #include "gp_circular_buffer.h"
 
+#include "circular_buffer.h"
 
 #include "hardware_STM32F407G_DISC1.h"
 
@@ -35,9 +36,13 @@ uint8_t full_duplex_usart_dma_initialized = 0;
 
 GenericPacketCallback fdud_gp_handler = NULL;
 
-volatile uint8_t full_duplex_usart_dma_tx_buffer[FDUD_TX_DMA_SIZE];
-volatile uint8_t full_duplex_usart_dma_rx_buffer[FDUD_RX_DMA_SIZE];
-volatile uint16_t full_duplex_usart_dma_rx_buffer_tail = 0;
+uint8_t full_duplex_usart_dma_tx_buffer[FDUD_TX_DMA_SIZE];
+
+uint8_t full_duplex_usart_dma_rx_buffer[FDUD_RX_DMA_SIZE];
+circular_buffer_t cb_fdud_dma_rx;
+uint8_t full_duplex_usart_ram_rx_buffer[FDUD_RX_RAM_SIZE];
+circular_buffer_t cb_fdud_ram_rx;
+
 
 FDUD_TxQueue_Struct fdud_txqs[FDUD_TX_QUEUE_SIZE];
 FDUD_TxQueue_CB_Struct fdud_txq_cb;
@@ -59,8 +64,6 @@ volatile uint8_t received_bytes_sending = 0;
 
 /* Private Functions */
 void full_duplex_usart_dma_communications_init(void);
-void full_duplex_usart_dma_service_rx(void);
-void full_duplex_usart_dma_service_tx(void);
 void full_duplex_usart_dma_write(void);
 void full_duplex_usart_dma_init_state_machine(void);
 void reset_received_bytes_sending(uint32_t cb_data);
@@ -105,6 +108,19 @@ uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler)
 
    retval = gp_receive_byte(0x00, GP_CONTROL_INITIALIZE, &gp_debug);
 
+   retval = cb_init(&cb_fdud_dma_rx, full_duplex_usart_dma_rx_buffer, FDUD_RX_DMA_SIZE);
+   if(retval != CB_SUCCESS)
+   {
+      fail = 1;
+   }
+
+   retval = cb_init(&cb_fdud_ram_rx, full_duplex_usart_ram_rx_buffer, FDUD_RX_RAM_SIZE);
+   if(retval != CB_SUCCESS)
+   {
+      fail = 1;
+   }
+
+
    /* Set the Callback Function Pointer */
    fdud_gp_handler = gp_handler;
 
@@ -118,6 +134,7 @@ uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler)
    }
 
    /* We're Up */
+   /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
    full_duplex_usart_dma_initialized = 1;
 
    /* Put something in the outgoing queue to see if it is working. */
@@ -197,24 +214,34 @@ void full_duplex_usart_dma_init_state_machine(void)
  */
 void full_duplex_usart_dma_service(void)
 {
-
-   full_duplex_usart_dma_service_rx();
-   /* while(received_bytes_sending); */
-   /* if(received_bytes_index > 44) */
-   /* { */
-   /*    received_bytes_sending = 1; */
-   /*    create_universal_byte_array(&gp_received_bytes, received_bytes, (received_bytes_index - 1)); */
-   /*    asm("DSB"); */
-   /*    full_duplex_usart_dma_add_to_queue(&gp_received_bytes, reset_received_bytes_sending, 0); */
-   /*    received_bytes_index = 0; */
-   /* } */
-
-   full_duplex_usart_dma_get_rx_packet();
-
-   full_duplex_usart_dma_service_tx();
+   uint8_t retval;
+   uint16_t dma_head;
+   uint8_t rx_byte;
 
 
-   /* Call packet handling fucntion for all received and valid packets? */
+   dma_head = (cb_fdud_dma_rx.cb_size - DMA2_Stream5->NDTR);
+   retval = cb_set_head_dma(&cb_fdud_dma_rx, dma_head);
+   if(retval == CB_SUCCESS)
+   {
+      do{
+         retval = cb_get_byte(&cb_fdud_dma_rx, &rx_byte);
+         if(retval == CB_SUCCESS)
+         {
+            retval = cb_add_byte(&cb_fdud_ram_rx, rx_byte);
+
+            /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_BLUE) == Bit_SET) */
+            /* { */
+            /*    GPIO_ResetBits(GPIOD, LED_PIN_BLUE); */
+            /* } */
+            /* else */
+            /* { */
+            /*    GPIO_SetBits(GPIOD, LED_PIN_BLUE); */
+            /* } */
+
+
+         }
+      }while(retval == CB_SUCCESS);
+   }
 
 }
 
@@ -283,56 +310,17 @@ void full_duplex_usart_dma_service_rx(void)
    uint16_t dma_head;
    uint8_t retval_gpcb;
    uint8_t retval;
+   uint8_t rx_byte;
 
    if(full_duplex_usart_dma_initialized)
    {
 
-
-      retval_gpcb = GP_CIRC_BUFFER_SUCCESS;
-
-
-      dma_head = (FDUD_RX_DMA_SIZE - DMA2_Stream5->NDTR);
-      /* while((full_duplex_usart_dma_rx_buffer_tail != dma_head)&&(retval_gpcb == GP_CIRC_BUFFER_SUCCESS)) */
-      while(full_duplex_usart_dma_rx_buffer_tail != dma_head)
-      {
-
-         /* At least figure out if we got here... */
-         if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_RED) == Bit_SET)
+      do{
+         retval = cb_get_byte(&cb_fdud_ram_rx, &rx_byte);
+         if(retval == CB_SUCCESS)
          {
-            GPIO_ResetBits(GPIOD, LED_PIN_RED);
-         }
-         else
-         {
-            GPIO_SetBits(GPIOD, LED_PIN_RED);
-         }
+            retval_gpcb = gpcb_receive_byte(rx_byte, &fdud_rx_gpcb);
 
-         /* Temporary while I figure out gpcb... */
-         /* received_bytes[received_bytes_index] = full_duplex_usart_dma_rx_buffer[full_duplex_usart_dma_rx_buffer_tail]; */
-         /* if(received_bytes_index < 0xFB) */
-         /* { */
-         /*    received_bytes_index++; */
-         /* } */
-
-         /* retval = gp_receive_byte(full_duplex_usart_dma_rx_buffer[full_duplex_usart_dma_rx_buffer_tail], GP_CONTROL_RUN, &gp_debug); */
-
-
-         /* End Temp */
-
-
-         retval_gpcb = gpcb_receive_byte((full_duplex_usart_dma_rx_buffer[full_duplex_usart_dma_rx_buffer_tail]), &fdud_rx_gpcb);
-
-         /* if((retval_gpcb == GP_CIRC_BUFFER_SUCCESS)||(retval_gpcb == GP_CHECKSUM_MATCH)) */
-         /* { */
-         full_duplex_usart_dma_rx_buffer_tail++;
-         if(full_duplex_usart_dma_rx_buffer_tail >= FDUD_RX_DMA_SIZE)
-         {
-            full_duplex_usart_dma_rx_buffer_tail = 0;
-         }
-         /* } */
-
-         if(retval == /* GP_ERROR_CHECKSUM_MISMATCH */ GP_CHECKSUM_MATCH)
-         /* if(retval) */
-         {
             if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_BLUE) == Bit_SET)
             {
                GPIO_ResetBits(GPIOD, LED_PIN_BLUE);
@@ -342,22 +330,24 @@ void full_duplex_usart_dma_service_rx(void)
                GPIO_SetBits(GPIOD, LED_PIN_BLUE);
             }
 
+
+            if(retval_gpcb == GP_CHECKSUM_MATCH)
+            {
+               if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_BLUE) == Bit_SET)
+               {
+                  GPIO_ResetBits(GPIOD, LED_PIN_BLUE);
+               }
+               else
+               {
+                  GPIO_SetBits(GPIOD, LED_PIN_BLUE);
+               }
+
+            }
+
          }
+      }while ((retval == CB_SUCCESS)&&((retval_gpcb == GP_CIRC_BUFFER_SUCCESS)||(retval_gpcb == GP_ERROR_CHECKSUM_MISMATCH)||(retval_gpcb == GP_CHECKSUM_MATCH)));
 
-         /* else */
-         /* { */
-         /*    /\* At least figure out if we got here... *\/ */
-         /*    if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET) */
-         /*    { */
-         /*       GPIO_ResetBits(GPIOD, LED_PIN_GREEN); */
-         /*    } */
-         /*    else */
-         /*    { */
-         /*       GPIO_SetBits(GPIOD, LED_PIN_GREEN); */
-         /*    } */
 
-         /* } */
-      }
    }
 
 }

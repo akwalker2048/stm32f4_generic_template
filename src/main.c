@@ -140,6 +140,13 @@ int main(void)
       rs485_slave_handle_packets();
       /* /\* rs485_write_outgoing_slave(); *\/ */
 
+
+      full_duplex_usart_dma_service_rx();
+      full_duplex_usart_dma_get_rx_packet();
+      full_duplex_usart_dma_service_tx();
+
+
+
       /* At least figure out if we got here... */
       if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET)
       {

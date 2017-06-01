@@ -4,7 +4,6 @@
 /* GP_CIRC_BUFFER_SIZE defaults to 16 within the generic packet code if you
  * don't override it.
  */
-#define GP_CIRC_BUFFER_SIZE 8
 #include "gp_circular_buffer.h"
 
 #include "full_duplex_usart_dma.h"
@@ -34,6 +33,8 @@ GenericPacket gp_sensor_info;
 
 GenericPacket gp_debug_slave[20];
 uint8_t debug_slave_ii = 0;
+
+uint32_t num_query_sensor_info = 0;
 
 /* Sensor Bus Slave State Machine
  *
@@ -466,13 +467,14 @@ void rs485_slave_process_rx_ram(void)
          /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
 
       }
-   }while((retval == CB_SUCCESS)&&(retval_gpcb = GP_CIRC_BUFFER_SUCCESS));
+   }while((retval == CB_SUCCESS)&&((retval_gpcb == GP_CIRC_BUFFER_SUCCESS)||(retval_gpcb == GP_ERROR_CHECKSUM_MISMATCH)||(retval_gpcb == GP_CHECKSUM_MATCH)));
 
 }
 
 void rs485_slave_handle_packets(void)
 {
-   uint8_t address, sensor_type;
+   uint8_t address;
+   uint8_t sensor_type;
    uint8_t retval_tail, retval;
    GenericPacket *gp_ptr;
    PoseIsh p;
@@ -484,6 +486,9 @@ void rs485_slave_handle_packets(void)
       {
 
          gp_ptr = &(gpcbs_slave_rx.gpcb[gpcbs_slave_rx.gpcb_tail]);
+
+         /* full_duplex_usart_dma_add_to_queue(gp_ptr, NULL, 0); */
+
          switch(gp_ptr->gp[GP_LOC_PROJ_ID])
          {
             case GP_PROJ_RS485_SB:
@@ -492,7 +497,9 @@ void rs485_slave_handle_packets(void)
                   {
                      case RS485_QUERY_SENSOR_INFO:
                         {
+                           /* asm("DSB"); */
                            retval = extract_rs485_query_sensor_info(gp_ptr, &address);
+                           /* asm("DSB"); */
 
                            /* create_universal_byte(&(gp_debug_slave[debug_slave_ii]), address); */
                            /* /\* AWALKER - Need to add a callback to know when this */
@@ -505,13 +512,14 @@ void rs485_slave_handle_packets(void)
                            /*    debug_slave_ii = 0; */
                            /* } */
 
-                           address = SLAVE_ADDRESS;
-
+                           /* address = SLAVE_ADDRESS; */
+                           /* address = gp_ptr->gp[GP_LOC_DATA_START]; */
 
                            if((retval == GP_SUCCESS)&&(address == SLAVE_ADDRESS))
                            {
                               /* Send the response packet to the master. */
-                              p.x = 1.1f;
+                              num_query_sensor_info++;
+                              p.x = (float)num_query_sensor_info;
                               p.y = 2.2f;
                               p.z = 3.3f;
                               p.roll = 4.4f;
@@ -521,6 +529,7 @@ void rs485_slave_handle_packets(void)
                               if(retval == GP_SUCCESS)
                               {
 
+                                 full_duplex_usart_dma_add_to_queue(&gp_sensor_info, NULL, 0);
                                  rs485_slave_write_dma(gp_sensor_info.gp, (gp_sensor_info.packet_length + GP_ALIGNMENT_PADDING));
                               }
                            }

@@ -444,7 +444,7 @@ void rs485_master_process_rx_dma(void)
    uint16_t dma_head;
    uint8_t rx_byte;
 
-   /* Warning!!! this may be a problem.  cb_size may not be the actual size of the dma register here!!!! */
+
    dma_head = (cb_master_dma_rx.cb_size - DMA1_Stream5->NDTR);
    retval = cb_set_head_dma(&cb_master_dma_rx, dma_head);
    if(retval == CB_SUCCESS)
@@ -454,18 +454,6 @@ void rs485_master_process_rx_dma(void)
          if(retval == CB_SUCCESS)
          {
             retval = cb_add_byte(&cb_master_ram_rx, rx_byte);
-
-            /* create_universal_byte(&(gp_debug_master[debug_master_ii]), rx_byte); */
-            /* /\* AWALKER - Need to add a callback to know when this */
-            /*  * packet is free to use again. */
-            /*  *\/ */
-            /* full_duplex_usart_dma_add_to_queue(&(gp_debug_master[debug_master_ii]), NULL, 0); */
-            /* debug_master_ii++; */
-            /* if(debug_master_ii >= 20) */
-            /* { */
-            /*    debug_master_ii = 0; */
-            /* } */
-
 
          }
       }while(retval == CB_SUCCESS);
@@ -496,7 +484,7 @@ void rs485_master_process_rx_ram(void)
          /* } */
 
       }
-   }while((retval == CB_SUCCESS)&&(retval_gpcb = GP_CIRC_BUFFER_SUCCESS));
+   }while((retval == CB_SUCCESS)&&((retval_gpcb == GP_CIRC_BUFFER_SUCCESS)||(retval_gpcb == GP_ERROR_CHECKSUM_MISMATCH)||(retval_gpcb == GP_CHECKSUM_MATCH)));
 
 }
 
@@ -514,7 +502,7 @@ void rs485_master_handle_packets(void)
       {
          gp_ptr = &(gpcbs_master_rx.gpcb[gpcbs_master_rx.gpcb_tail]);
 
-         full_duplex_usart_dma_add_to_queue(gp_ptr, NULL, 0);
+         /* full_duplex_usart_dma_add_to_queue(gp_ptr, NULL, 0); */
 
          switch(gp_ptr->gp[GP_LOC_PROJ_ID])
          {
