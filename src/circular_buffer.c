@@ -136,7 +136,7 @@ uint8_t cb_increment_tail(circular_buffer_t *cb)
 uint8_t cb_set_head_dma(circular_buffer_t *cb, uint16_t head_dma)
 {
 
-   if(head_dma < cb->cb_size)
+   if(head_dma <= cb->cb_size)
    {
       cb->cb_head = head_dma;
    }

@@ -201,20 +201,26 @@ void rs485_sensor_bus_init_master_state_machine(void)
    NVIC_InitTypeDef   NVIC_InitStructure;
 
    uint32_t TimerPeriod = 0;
+   uint16_t pscale = 0;
 
    /* Turn the timer clock on! */
    RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM9, ENABLE);
 
-   /* TIM9 on APB2 runs at SystemCoreClock.  The factor of 2 in the denominator
-    * in this case is because we are dividing the clock to get a longer period.
-    */
-   TimerPeriod = (SystemCoreClock / (RS485_SENSOR_BUS_SM_HZ)) - 1;
+   /* TIM9 on APB2 runs at SystemCoreClock. */
+   pscale = 3;
+   TimerPeriod = (SystemCoreClock / (RS485_SENSOR_BUS_SM_HZ * (pscale+1))) - 1;
+
+   /* TIM9 is only 16bits */
+   if(TimerPeriod > 0xFFFF)
+   {
+      TimerPeriod = 0xFFFF;
+   }
 
    /* Time Base configuration */
-   TIM_TimeBaseStructure.TIM_Prescaler = 0;
+   TIM_TimeBaseStructure.TIM_Prescaler = pscale;
    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
    TIM_TimeBaseStructure.TIM_Period = TimerPeriod;
-   TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV2;
+   TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
    TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
 
    TIM_TimeBaseInit(TIM9, &TIM_TimeBaseStructure);

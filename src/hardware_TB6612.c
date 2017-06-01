@@ -113,7 +113,10 @@ void TB6612_init_complimentary_pwm(void)
    GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_TIM1);
    GPIO_PinAFConfig(GPIOE, GPIO_PinSource8, GPIO_AF_TIM1);
 
-   /* Compute the value to be set in ARR register to generate signal frequency at 24.0 Khz */
+   /* Compute the value to be set in ARR register to generate signal frequency
+      at 24.0 Khz... Assumes Prescaler of 0...and that the Period didn't roll.
+      Timer1 is a 16bit timer.... So 168000000/24000 = 7000...check!
+   */
    TimerPeriod = (SystemCoreClock / 24000) - 1;
    TIM1_Period = TimerPeriod;
 

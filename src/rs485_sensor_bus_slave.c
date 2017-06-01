@@ -8,6 +8,8 @@
 
 #include "full_duplex_usart_dma.h"
 
+#include "hardware_STM32F407G_DISC1.h"
+
 
 /* Buffers for raw data dma send and receive. */
 uint8_t rs485_slave_dma_tx_buffer[GP_MAX_PACKET_LENGTH];
@@ -49,7 +51,7 @@ void TIM1_UP_TIM10_IRQHandler(void)
    {
       rs485_slave_state_timer++;
 
-      /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
+      GPIO_SetBits(GPIOD, LED_PIN_BLUE);
 
       /* Always move received data out of the dma buffer to be processed outside
        * of the interrupt.  We don't want to take too long in here.
@@ -66,7 +68,7 @@ void TIM1_UP_TIM10_IRQHandler(void)
             break;
       } /* switch(slave_state) */
 
-      /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
+      GPIO_ResetBits(GPIOD, LED_PIN_BLUE);
 
       TIM_ClearITPendingBit(TIM10, TIM_IT_Update);
    }
@@ -133,20 +135,26 @@ void rs485_sensor_bus_init_slave_state_machine(void)
    NVIC_InitTypeDef   NVIC_InitStructure;
 
    uint32_t TimerPeriod = 0;
+   uint16_t pscale = 0;
 
    /* Turn the timer clock on! */
    RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM10, ENABLE);
 
-   /* TIM9 on APB2 runs at SystemCoreClock.  The factor of 2 in the denominator
-    * in this case is because we are dividing the clock to get a longer period.
-    */
-   TimerPeriod = (SystemCoreClock / (RS485_SENSOR_BUS_SM_HZ * 2)) - 1;
+   /* TIM10 on APB2 runs at SystemCoreClock. */
+   pscale = 3;
+   TimerPeriod = (SystemCoreClock / (RS485_SENSOR_BUS_SM_HZ * (pscale+1))) - 1;
+
+   /* TIM10 is only 16bits */
+   if(TimerPeriod > 0xFFFF)
+   {
+      TimerPeriod = 0xFFFF;
+   }
 
    /* Time Base configuration */
-   TIM_TimeBaseStructure.TIM_Prescaler = 0;
+   TIM_TimeBaseStructure.TIM_Prescaler = pscale;
    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
    TIM_TimeBaseStructure.TIM_Period = TimerPeriod;
-   TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV2;
+   TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
    TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
 
    TIM_TimeBaseInit(TIM10, &TIM_TimeBaseStructure);
@@ -390,7 +398,11 @@ void rs485_slave_process_rx_dma(void)
          retval = cb_get_byte(&cb_slave_dma_rx, &rx_byte);
          if(retval == CB_SUCCESS)
          {
+            GPIO_SetBits(GPIOD, LED_PIN_RED);
+
             retval = cb_add_byte(&cb_slave_ram_rx, rx_byte);
+
+            GPIO_ResetBits(GPIOD, LED_PIN_RED);
 
             /* create_universal_byte(&(gp_debug_slave[debug_slave_ii]), rx_byte); */
             /* /\* AWALKER - Need to add a callback to know when this */
@@ -404,6 +416,7 @@ void rs485_slave_process_rx_dma(void)
             /* } */
          }
       }while(retval == CB_SUCCESS);
+
    }
 
 }
@@ -421,50 +434,12 @@ void rs485_slave_process_rx_ram(void)
       retval = cb_get_byte(&cb_slave_ram_rx, &rx_byte);
       if(retval == CB_SUCCESS)
       {
-         /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
+         GPIO_SetBits(GPIOD, LED_PIN_RED);
 
          retval_gpcb = gpcb_receive_byte(rx_byte, &gpcbs_slave_rx);
 
          /* for debug */
-
-         /* create_universal_byte(&(gp_debug_slave[debug_slave_ii]), retval_gpcb); */
-         /* /\* AWALKER - Need to add a callback to know when this */
-         /*  * packet is free to use again. */
-         /*  *\/ */
-         /* full_duplex_usart_dma_add_to_queue(&(gp_debug_slave[debug_slave_ii]), NULL, 0); */
-         /* debug_slave_ii++; */
-         /* if(debug_slave_ii >= 20) */
-         /* { */
-         /*    debug_slave_ii = 0; */
-         /* } */
-
-
-
-         /* /\* retval_debug = create_universal_byte(&gp_debug, 0x08); *\/ */
-         /* create_universal_byte(&gp_debug, retval_gpcb); */
-         /* if(retval_debug == GP_SUCCESS) */
-         /* { */
-         /*    /\* I don't think I need these...I think my communication issue is */
-         /*     * because I am creating the next packet before this one has */
-         /*     * finished writing.  Need to create a circular buffer here. */
-         /*     *\/ */
-         /*    /\* asm("DMB"); /\\* Data Memory Barrier *\\/ *\/ */
-         /*    /\* asm("DSB"); /\\* Data Synchronization Barrier *\\/ *\/ */
-         /*    /\* asm("ISB"); /\\* Instruction Synchronization Barrier. *\\/ *\/ */
-         /*    usart_write_dma(gp_debug.gp, gp_debug.packet_length); */
-         /* } */
-
-         /* if(retval_gpcb == GP_CHECKSUM_MATCH) */
-         /* { */
-         /*    /\* GPIO_SetBits(GPIOD, LED_PIN_RED); *\/ */
-         /* } */
-
-         /* if(retval_gpcb == GP_ERROR_CHECKSUM_MISMATCH) */
-         /* { */
-         /*    /\* GPIO_SetBits(GPIOD, LED_PIN_RED); *\/ */
-         /* } */
-
-         /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
+         GPIO_ResetBits(GPIOD, LED_PIN_RED);
 
       }
    }while((retval == CB_SUCCESS)&&((retval_gpcb == GP_CIRC_BUFFER_SUCCESS)||(retval_gpcb == GP_ERROR_CHECKSUM_MISMATCH)||(retval_gpcb == GP_CHECKSUM_MATCH)));

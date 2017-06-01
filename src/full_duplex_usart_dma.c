@@ -173,6 +173,7 @@ void full_duplex_usart_dma_init_state_machine(void)
    NVIC_InitTypeDef   NVIC_InitStructure;
 
    uint32_t TimerPeriod = 0;
+   uint16_t pscale = 0;
 
    /* Turn the timer clock on! */
    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM12, ENABLE);
@@ -180,16 +181,17 @@ void full_duplex_usart_dma_init_state_machine(void)
    /* TIM12 on APB1 runs at SystemCoreClock/2.  The factor of 2 in the denominator
     * in this case is because APB1 runs at half of SystemCoreClock.
     */
-   TimerPeriod = (SystemCoreClock / (FULL_DUPLEX_USART_SM_HZ * 2)) - 1;
+   pscale = 1;
+   TimerPeriod = (SystemCoreClock / (FULL_DUPLEX_USART_SM_HZ * (pscale+1) * 2)) - 1;
 
    /* Time Base configuration */
-   TIM_TimeBaseStructure.TIM_Prescaler = 0;
+   TIM_TimeBaseStructure.TIM_Prescaler = pscale;
    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
    TIM_TimeBaseStructure.TIM_Period = TimerPeriod;
    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
    TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
 
-   TIM_TimeBaseInit(TIM10, &TIM_TimeBaseStructure);
+   TIM_TimeBaseInit(TIM12, &TIM_TimeBaseStructure);
 
    /* Set up interrupt. */
    NVIC_InitStructure.NVIC_IRQChannel = TIM8_BRK_TIM12_IRQn;
@@ -228,17 +230,6 @@ void full_duplex_usart_dma_service(void)
          if(retval == CB_SUCCESS)
          {
             retval = cb_add_byte(&cb_fdud_ram_rx, rx_byte);
-
-            /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_BLUE) == Bit_SET) */
-            /* { */
-            /*    GPIO_ResetBits(GPIOD, LED_PIN_BLUE); */
-            /* } */
-            /* else */
-            /* { */
-            /*    GPIO_SetBits(GPIOD, LED_PIN_BLUE); */
-            /* } */
-
-
          }
       }while(retval == CB_SUCCESS);
    }
@@ -292,6 +283,9 @@ uint8_t full_duplex_usart_dma_add_to_queue(GenericPacket *gp_ptr, FDUD_TxQueueCa
    }
    else
    {
+
+      GPIO_SetBits(GPIOD, LED_PIN_RED);
+
       return FDUD_FAIL_NOT_INITIALIZED;
    }
 }
@@ -321,26 +315,17 @@ void full_duplex_usart_dma_service_rx(void)
          {
             retval_gpcb = gpcb_receive_byte(rx_byte, &fdud_rx_gpcb);
 
-            if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_BLUE) == Bit_SET)
-            {
-               GPIO_ResetBits(GPIOD, LED_PIN_BLUE);
-            }
-            else
-            {
-               GPIO_SetBits(GPIOD, LED_PIN_BLUE);
-            }
-
 
             if(retval_gpcb == GP_CHECKSUM_MATCH)
             {
-               if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_BLUE) == Bit_SET)
-               {
-                  GPIO_ResetBits(GPIOD, LED_PIN_BLUE);
-               }
-               else
-               {
-                  GPIO_SetBits(GPIOD, LED_PIN_BLUE);
-               }
+               /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_BLUE) == Bit_SET) */
+               /* { */
+               /*    GPIO_ResetBits(GPIOD, LED_PIN_BLUE); */
+               /* } */
+               /* else */
+               /* { */
+               /*    GPIO_SetBits(GPIOD, LED_PIN_BLUE); */
+               /* } */
 
             }
 

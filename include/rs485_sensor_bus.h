@@ -10,14 +10,14 @@
 #include "gp_proj_universal.h"
 
 /* Both master and slave will use the same size buffers. */
-#define DMA_RX_BUFFER_SIZE (GP_MAX_PACKET_LENGTH * 4)
+#define DMA_RX_BUFFER_SIZE (GP_MAX_PACKET_LENGTH * 1)
 #define RAM_RX_BUFFER_SIZE (4 * DMA_RX_BUFFER_SIZE)
 
 #define GP_CIRC_BUFFER_SIZE_TX  16
 #define GP_CIRC_BUFFER_SIZE_RX  16
 
 #define RS485_SENSOR_BUS_BAUD   1500000
-#define RS485_SENSOR_BUS_SM_HZ     2000
+#define RS485_SENSOR_BUS_SM_HZ     1000
 
 #define RS485_MASTER_DELAY_TIME_MSEC  1000
 #define RS485_MASTER_DELAY_TICKS   ((RS485_SENSOR_BUS_SM_HZ * RS485_MASTER_DELAY_TIME_MSEC)/1000)

@@ -318,7 +318,11 @@ void tilt_motor_init_state_machine(void)
    /* Turn the timer clock on! */
    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
 
-   /* Start with a 1ms timer for the state machine. */
+   /* Start with a 1ms timer for the state machine.  TIM2 is a 32bit counter!
+    * And APB1 is counting at 84 MHz...SystemCoreClock is 168 MHz so the
+    * factor of 2 in the denominator. Assumes the Prescaler is 0 and  that
+    * TimerPeriod wouldn't roll a 32 bit number.
+    */
    TimerPeriod = (SystemCoreClock / (MOTOR_STATE_MACHINE_HZ * 2)) - 1;
 
    /* Time Base configuration */
