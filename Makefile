@@ -99,10 +99,11 @@ clean:
 
 main.bin: main.elf
 	@ echo "/* ***************************************************** */"
-	@ echo "/* ...copying                                             */"
+	@ echo "/* ...copying                                            */"
 	@ echo "/* ***************************************************** */"
 	$(CP) $(CPFLAGS) main.elf main.bin
 	$(OD) $(ODFLAGS) main.elf > main.lst
+	$(CP) --change-address 0x08000000 -O ihex main.elf main.hex
 
 main.elf: $(OBJ_OBJECTS)
 	@ echo "/* ***************************************************** */"
