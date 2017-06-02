@@ -47,12 +47,13 @@ uint8_t cb_add_byte(circular_buffer_t *cb, uint8_t byte)
 
 uint8_t cb_get_byte(circular_buffer_t *cb, uint8_t *byte)
 {
-   uint8_t retval;
+   uint8_t retval, retval_inc_tail;
 
    if(cb->cb_head != cb->cb_tail)
    {
          *byte = cb->cb_data[cb->cb_tail];
-         retval = cb_increment_tail(cb);
+         retval_inc_tail = cb_increment_tail(cb);
+         retval = CB_SUCCESS;
    }
    else
    {
@@ -104,25 +105,16 @@ uint8_t cb_increment_head(circular_buffer_t *cb)
 
 uint8_t cb_increment_tail(circular_buffer_t *cb)
 {
-   uint32_t temp_tail;
-
-   /* Store this in the event that we caught the head. */
-   temp_tail = cb->cb_tail;
-
-   cb->cb_tail++;
-   if(cb->cb_tail >= cb->cb_size)
+   if(cb->cb_tail != cb->cb_head)
    {
-      cb->cb_tail = 0;
+      cb->cb_tail++;
+      if(cb->cb_tail >= cb->cb_size)
+      {
+         cb->cb_tail = 0;
+      }
    }
-
-   /* Did we catch the head?  Check here is greater than because we can read the
-    * current head value because we don't increment it until it is ready to
-    * read.  Notify the caller that we need to hang tight until the head is
-    * incremented.
-    */
-   if(cb->cb_tail > cb->cb_head)
+   else
    {
-      cb->cb_tail = temp_tail;
       return CB_ERROR_TAIL_CAUGHT_HEAD;
    }
 
