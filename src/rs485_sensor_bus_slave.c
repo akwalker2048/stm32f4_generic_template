@@ -504,7 +504,7 @@ void rs485_slave_handle_packets(void)
                               if(retval == GP_SUCCESS)
                               {
 
-                                 full_duplex_usart_dma_add_to_queue(&gp_sensor_info, NULL, 0);
+                                 /* full_duplex_usart_dma_add_to_queue(&gp_sensor_info, NULL, 0); */
                                  rs485_slave_write_dma(gp_sensor_info.gp, (gp_sensor_info.packet_length + GP_ALIGNMENT_PADDING));
                               }
                            }

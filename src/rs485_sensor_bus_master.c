@@ -95,6 +95,7 @@ void TIM1_BRK_TIM9_IRQHandler(void)
                if(response_received)
                {
                   rs485_master_state_change(RS485_MASTER_DELAY, 1);
+                  /* rs485_master_state_change(RS485_MASTER_QUERY_DEVICE, 1); */
                }
 
             } /* RS485_MASTER_AWAIT_RESPONSE */
