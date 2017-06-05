@@ -1,6 +1,17 @@
 #ifndef RS485_SENSOR_BUS_H
 #define RS485_SENSOR_BUS_H
 
+/**
+ * @file rs485_sensor_bus.h
+ * @author Andrew K. Walker
+ * @date 22 MAY 2017
+ * @brief Header file for RS485 sensor bus (master and slave).
+ *
+ * This includes all of the defines and function prototypes for  the RS485
+ * sensor bus.
+ */
+
+
 #include <stdint.h>
 
 #include "stm32f4xx_conf.h"
@@ -43,6 +54,11 @@
  */
 #define SLAVE_ADDRESS 0x02
 
+/** \enum rs485_master_states
+ *
+ * Describes the states in the RS485 master state machine.
+ *
+ */
 typedef enum {RS485_MASTER_INIT,
               RS485_MASTER_FIND_ATTACHED_DEVICES,
               RS485_MASTER_QUERY_DEVICE,
@@ -55,13 +71,12 @@ typedef enum {RS485_MASTER_INIT,
  *
  * \fn uint8_t rs485_sensor_bus_init_master(void);
  *
- * One time initialization of RS485 master device.
+ * \brief Initialization of RS485 master function.
  *
  * Should be called one time after the device is initialized, clocks are
  * initialized, and SystemCoreClock is set.  Packet loss can occur if the
  * master device is initialized before the slave device.
  *
- * \brief Function Description
  * This function initializes the USART hardware used for the RS485 master
  * device.  Additionally, a GPIO is configured to be used to select between
  * receive and transmit mode.  A transmission complete interrupt is configured
@@ -83,16 +98,97 @@ typedef enum {RS485_MASTER_INIT,
  *
  */
 uint8_t rs485_sensor_bus_init_master(void);
+
+/**
+ *
+ * \fn uint8_t rs485_master_spin(void);
+ *
+ * \brief Public fucntion for polled RS485 master functions.
+ *
+ * Functions that can, and should be polled outside of an interrupt.  This
+ * includes parsing the packet data from the circular RAM buffer (the DMA
+ * circular buffer is handled in a hard time interrupt).  This is because
+ * parsing certain bytes can take longer than the timer interrupt.  For
+ * example when the last byte of the packet is received and the checksum
+ * must be calculated.
+ *
+ * \todo Add memory protection via callback for memory used for GenericPackets
+ * that are transmitted.  We need to make sure that the memory isn't used again
+ * until the transmission is complete.
+ *
+ * \param   None
+ * \return  None
+ *
+ */
 void rs485_master_spin(void);
 
-
+/** \enum rs485_slave_states
+ *
+ * Describes the states in the RS485 slave state machine.
+ *
+ */
 typedef enum {RS485_SLAVE_INIT,
               RS485_SLAVE_WAIT_FOR_QUERY,
               RS485_SLAVE_SEND_DATA,
               RS485_SLAVE_IDLE,
               RS485_SLAVE_ERROR} rs485_slave_states;
 
+
+/**
+ *
+ * \fn uint8_t rs485_sensor_bus_init_slave(void);
+ *
+ * \brief Initialization of RS485 slave function.
+ *
+ * Should be called one time after the device is initialized, clocks are
+ * initialized, and SystemCoreClock is set.  Packet loss can occur if the
+ * master device is initialized before the slave device.
+ *
+ * This function initializes the USART hardware used for the RS485 master
+ * device.  Additionally, a GPIO is configured to be used to select between
+ * receive and transmit mode.  A transmission complete interrupt is configured
+ * to allow quick transition of the receive/transmit GPIO.  Finally, a timer
+ * is configured to run a state machine that controls the flow of communication
+ * between the master and slave devices.
+ *
+ * \todo Optimize the state machine timing relative to time required to process
+ * packets.
+ * \todo Finish documenting the rest of the functions.
+ * \todo Improve the recovery when we lose our place parsing packets.  This may
+ * involve using the state machine to know that enough time has elapsed between
+ * packets that we should re-initialize the GenericPacket structure.
+ *
+ * \note Brings up the RS485 master communications.
+ *
+ * \param   None
+ * \return  None
+ *
+ */
 uint8_t rs485_sensor_bus_init_slave(void);
+
+
+
+/**
+ *
+ * \fn uint8_t rs485_slave_spin(void);
+ *
+ * \brief Public fucntion for polled RS485 slave functions.
+ *
+ * Functions that can, and should be polled outside of an interrupt.  This
+ * includes parsing the packet data from the circular RAM buffer (the DMA
+ * circular buffer is handled in a hard time interrupt).  This is because
+ * parsing certain bytes can take longer than the timer interrupt.  For
+ * example when the last byte of the packet is received and the checksum
+ * must be calculated.
+ *
+ * \todo Add memory protection via callback for memory used for GenericPackets
+ * that are transmitted.  We need to make sure that the memory isn't used again
+ * until the transmission is complete.
+ *
+ * \param   None
+ * \return  None
+ *
+ */
 void rs485_slave_spin(void);
 
 #endif

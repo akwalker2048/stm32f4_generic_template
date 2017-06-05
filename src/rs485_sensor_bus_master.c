@@ -1,3 +1,14 @@
+/**
+ * @file rs485_sensor_bus_master.c
+ * @author Andrew K. Walker
+ * @date 25 MAY 2017
+ * @brief Module for RS485 master device.
+ *
+ * This includes all of the necessary functions to run a RS485 device as a
+ * master on the sensor bus.
+ */
+
+
 #include "rs485_sensor_bus.h"
 #include "circular_buffer.h"
 

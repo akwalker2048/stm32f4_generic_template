@@ -1,0 +1,31 @@
+/** \mainpage STM32F4 Generic Template
+ *
+ * This project consists of many functions that I commonly use in STM32F4
+ * projects.  It is used to create, refine, and debug these functions which
+ * can later be combined and used in other, more specialized projects.
+ *
+ * - \subpage RS485SensorBus
+ * - \subpage FullDuplexUSART
+ *
+ */
+
+/** \page RS485SensorBus RS485 Sensor Bus
+ *
+ * Used to communicate on a half-duplex, multi-drop network.  All defines for
+ * running a master and a slave node on the network.
+ *
+ * - \ref rs485_sensor_bus.h
+ * - \ref rs485_sensor_bus_master.c
+ * - \ref rs485_sensor_bus_slave.c
+ *
+ */
+
+/** \page FullDuplexUSART Full Duplex USART
+ *
+ * Used for debug and general communications on full duplex USART.  Used for
+ * all manner of communication between any two devices using a USART.
+ *
+ * - \ref full_duplex_usart_dma.c
+ * - \ref full_duplex_usart_dma.h
+ *
+ */

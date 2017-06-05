@@ -1,3 +1,13 @@
+/**
+ * @file rs485_sensor_bus_slave.c
+ * @author Andrew K. Walker
+ * @date 23 MAY 2017
+ * @brief Module for RS485 slave device.
+ *
+ * This includes all of the necessary functions to run a RS485 device as a
+ * slave on the sensor bus.
+ */
+
 #include "rs485_sensor_bus.h"
 #include "circular_buffer.h"
 
