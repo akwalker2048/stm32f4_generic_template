@@ -41,7 +41,7 @@
  * set the address.  This could be used at manufacturing to configure sensors
  * for the robot.
  */
-#define SLAVE_ADDRESS 0x01
+#define SLAVE_ADDRESS 0x02
 
 typedef enum {RS485_MASTER_INIT,
               RS485_MASTER_FIND_ATTACHED_DEVICES,
@@ -50,17 +50,40 @@ typedef enum {RS485_MASTER_INIT,
               RS485_MASTER_DELAY,
               RS485_MASTER_IDLE,
               RS485_MASTER_ERROR} rs485_master_states;
-uint8_t rs485_sensor_bus_init_master(void);
-void rs485_sensor_bus_init_master_state_machine(void);
-void rs485_sensor_bus_init_master_communications(void);
-void rs485_sensor_bus_master_tx(void);
-void rs485_sensor_bus_master_rx(void);
-void rs485_master_state_change(rs485_master_states new_state, uint8_t reset_timer);
-void rs485_master_write_dma(uint8_t *data, uint32_t length);
-void rs485_master_process_rx_dma(void);
-void rs485_master_process_rx_ram(void);
-void rs485_master_handle_packets(void);
 
+/**
+ *
+ * \fn uint8_t rs485_sensor_bus_init_master(void);
+ *
+ * One time initialization of RS485 master device.
+ *
+ * Should be called one time after the device is initialized, clocks are
+ * initialized, and SystemCoreClock is set.  Packet loss can occur if the
+ * master device is initialized before the slave device.
+ *
+ * \brief Function Description
+ * This function initializes the USART hardware used for the RS485 master
+ * device.  Additionally, a GPIO is configured to be used to select between
+ * receive and transmit mode.  A transmission complete interrupt is configured
+ * to allow quick transition of the receive/transmit GPIO.  Finally, a timer
+ * is configured to run a state machine that controls the flow of communication
+ * between the master and slave devices.
+ *
+ * \todo Optimize the state machine timing relative to time required to process
+ * packets.
+ * \todo Finish documenting the rest of the functions.
+ * \todo Improve the recovery when we lose our place parsing packets.  This may
+ * involve using the state machine to know that enough time has elapsed between
+ * packets that we should re-initialize the GenericPacket structure.
+ *
+ * \note Brings up the RS485 master communications.
+ *
+ * \param   None
+ * \return  None
+ *
+ */
+uint8_t rs485_sensor_bus_init_master(void);
+void rs485_master_spin(void);
 
 
 typedef enum {RS485_SLAVE_INIT,
@@ -68,18 +91,8 @@ typedef enum {RS485_SLAVE_INIT,
               RS485_SLAVE_SEND_DATA,
               RS485_SLAVE_IDLE,
               RS485_SLAVE_ERROR} rs485_slave_states;
+
 uint8_t rs485_sensor_bus_init_slave(void);
-void rs485_sensor_bus_init_slave_state_machine(void);
-void rs485_sensor_bus_init_slave_communications(void);
-void rs485_sensor_bus_slave_tx(void);
-void rs485_sensor_bus_slave_rx(void);
-void rs485_slave_state_change(rs485_slave_states new_state, uint8_t reset_timer);
-void rs485_slave_write_dma(uint8_t *data, uint32_t length);
-void rs485_slave_process_rx_dma(void);
-void rs485_slave_process_rx_ram(void);
-void rs485_slave_handle_packets(void);
-
-
-
+void rs485_slave_spin(void);
 
 #endif

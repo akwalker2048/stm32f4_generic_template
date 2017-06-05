@@ -38,6 +38,26 @@ uint8_t debug_slave_ii = 0;
 
 uint32_t num_query_sensor_info = 0;
 
+void rs485_sensor_bus_init_slave_state_machine(void);
+void rs485_sensor_bus_init_slave_communications(void);
+void rs485_sensor_bus_slave_tx(void);
+void rs485_sensor_bus_slave_rx(void);
+void rs485_slave_state_change(rs485_slave_states new_state, uint8_t reset_timer);
+void rs485_slave_write_dma(uint8_t *data, uint32_t length);
+void rs485_slave_process_rx_dma(void);
+void rs485_slave_process_rx_ram(void);
+void rs485_slave_handle_packets(void);
+
+/* rs485_slave_spin()
+ *   +This function is called from the main loop and performs all of the
+ *    functions that do not need to be in hard real time.
+ */
+void rs485_slave_spin(void)
+{
+   rs485_slave_process_rx_ram();
+   rs485_slave_handle_packets();
+}
+
 /* Sensor Bus Slave State Machine
  *
  * Do I need the __attribute__("bank_switch") since I have a function call in here?
@@ -493,13 +513,26 @@ void rs485_slave_handle_packets(void)
                            if((retval == GP_SUCCESS)&&(address == SLAVE_ADDRESS))
                            {
                               /* Send the response packet to the master. */
-                              num_query_sensor_info++;
-                              p.x = (float)num_query_sensor_info;
-                              p.y = 2.2f;
-                              p.z = 3.3f;
-                              p.roll = 4.4f;
-                              p.pitch = 5.5f;
-                              p.yaw = 6.6f;
+                              if(SLAVE_ADDRESS == 0x02)
+                              {
+                                 num_query_sensor_info++;
+                                 p.x = 2.0f;
+                                 p.y = 2.1f;
+                                 p.z = 2.2f;
+                                 p.roll = 2.3f;
+                                 p.pitch = 2.4f;
+                                 p.yaw = (float)num_query_sensor_info;
+                              }
+                              else
+                              {
+                                 num_query_sensor_info++;
+                                 p.x = (float)num_query_sensor_info;
+                                 p.y = 1.1f;
+                                 p.z = 1.2f;
+                                 p.roll = 1.3f;
+                                 p.pitch = 1.4f;
+                                 p.yaw = 1.5f;
+                              }
                               retval = create_rs485_resp_sensor_info(&gp_sensor_info, RS485_ADDRESS_MASTER, RS485_SB_TYPE_PROXIMITY_SONAR, p);
                               if(retval == GP_SUCCESS)
                               {

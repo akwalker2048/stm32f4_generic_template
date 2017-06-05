@@ -67,6 +67,10 @@ void full_duplex_usart_dma_communications_init(void);
 void full_duplex_usart_dma_write(void);
 void full_duplex_usart_dma_init_state_machine(void);
 void reset_received_bytes_sending(uint32_t cb_data);
+void full_duplex_usart_dma_service_rx(void);
+uint8_t full_duplex_usart_dma_get_rx_packet(void);
+void full_duplex_usart_dma_service_tx(void);
+void full_duplex_usart_dma_service(void);
 
 /* PUBLIC full_duplex_usart_up
  *
@@ -79,6 +83,21 @@ void reset_received_bytes_sending(uint32_t cb_data);
 uint8_t full_duplex_usart_dma_up(void)
 {
    return full_duplex_usart_dma_initialized;
+}
+
+
+/* PUBLIC full_duplex_usart_dma_spin
+ *
+ * Notes:
+ *  +This functions is called from the main program while loop.  It allows
+ *   all of the processes that need to happen that don't have to be in hard
+ *   real time.  We will get to them as quickly as the processor will allow.
+ */
+void full_duplex_usart_dma_spin(void)
+{
+   full_duplex_usart_dma_service_rx();
+   full_duplex_usart_dma_get_rx_packet();
+   full_duplex_usart_dma_service_tx();
 }
 
 
@@ -207,7 +226,7 @@ void full_duplex_usart_dma_init_state_machine(void)
 }
 
 
-/* PUBLIC full_duplex_usart_dma_service(void)
+/* PRIVATE full_duplex_usart_dma_service(void)
  *
  * Notes:
  *  +This function must be called by the main program frequently enough to
@@ -290,7 +309,7 @@ uint8_t full_duplex_usart_dma_add_to_queue(GenericPacket *gp_ptr, FDUD_TxQueueCa
    }
 }
 
-/* PUBLIC full_duplex_usart_dma_service_rx
+/* PRIVATE full_duplex_usart_dma_service_rx
  *
  * Notes:
  *  +This function must be called from the main program frequently enough that
@@ -337,7 +356,7 @@ void full_duplex_usart_dma_service_rx(void)
 
 }
 
-/* PUBLIC full_duplex_usart_dma_service_tx
+/* PRIVATE full_duplex_usart_dma_service_tx
  *
  * Notes:
  *  +This function sends out all packets that are currently in the queue.
@@ -380,7 +399,7 @@ void full_duplex_usart_dma_service_tx(void)
    }
 }
 
-/* PUBLIC full_duplex_usart_dma_get_rx_packet
+/* PRIVATE full_duplex_usart_dma_get_rx_packet
  *
  * Notes:
  *  +Not 100% sure how to implement this yet...copying GenericPackets has been

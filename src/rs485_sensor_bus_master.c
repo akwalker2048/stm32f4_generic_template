@@ -30,10 +30,31 @@ uint32_t rs485_master_state_timer = 0;
 
 volatile uint8_t response_received = 0;
 
+uint8_t current_slave_address = SLAVE_ADDRESS;
 
 GenericPacket gp_debug_master[20];
 uint8_t debug_master_ii = 0;
 
+void rs485_sensor_bus_init_master_state_machine(void);
+void rs485_sensor_bus_init_master_communications(void);
+void rs485_sensor_bus_master_tx(void);
+void rs485_sensor_bus_master_rx(void);
+void rs485_master_state_change(rs485_master_states new_state, uint8_t reset_timer);
+void rs485_master_write_dma(uint8_t *data, uint32_t length);
+void rs485_master_process_rx_dma(void);
+void rs485_master_process_rx_ram(void);
+void rs485_master_handle_packets(void);
+
+
+/* rs485_master_spin()
+ *  +This function is called from the main loop.  It allows all of the functions
+ *   that do not require hard real time to execute.
+ */
+void rs485_master_spin(void)
+{
+   rs485_master_process_rx_ram();
+   rs485_master_handle_packets();
+}
 
 /* Sensor Bus Master State Machine
  *
@@ -72,7 +93,15 @@ void TIM1_BRK_TIM9_IRQHandler(void)
             break;
          case RS485_MASTER_QUERY_DEVICE:
             {
-               retval = create_rs485_query_sensor_info(&packet_query, SLAVE_ADDRESS);
+               if(current_slave_address == 0x01)
+               {
+                  current_slave_address = 0x02;
+               }
+               else
+               {
+                  current_slave_address = 0x01;
+               }
+               retval = create_rs485_query_sensor_info(&packet_query, current_slave_address);
                if(retval == GP_SUCCESS)
                {
                   response_received = 0;
@@ -95,6 +124,7 @@ void TIM1_BRK_TIM9_IRQHandler(void)
                if(response_received)
                {
                   rs485_master_state_change(RS485_MASTER_DELAY, 1);
+
                   /* rs485_master_state_change(RS485_MASTER_QUERY_DEVICE, 1); */
                }
 

@@ -99,8 +99,8 @@ int main(void)
    init_adc();
 
    /* Cannot RS485 and Tilt!!!! Pin A2 */
-   rs485_sensor_bus_init_master();
    rs485_sensor_bus_init_slave();
+   rs485_sensor_bus_init_master();
 
 
    /* Cannot RS485 and Tilt!!!! Pin A2 */
@@ -132,18 +132,11 @@ int main(void)
       /* process_usart3_buffer(); */
 
 
-      rs485_master_process_rx_ram();
-      rs485_master_handle_packets();
-      /* /\* rs485_write_outgoing_master(); *\/ */
+      rs485_master_spin();
 
-      rs485_slave_process_rx_ram();
-      rs485_slave_handle_packets();
-      /* /\* rs485_write_outgoing_slave(); *\/ */
+      rs485_slave_spin();
 
-
-      full_duplex_usart_dma_service_rx();
-      full_duplex_usart_dma_get_rx_packet();
-      full_duplex_usart_dma_service_tx();
+      full_duplex_usart_dma_spin();
 
 
 
@@ -158,7 +151,6 @@ int main(void)
       }
 
 
-      /* full_duplex_usart_dma_service(); */
 
 
       /* tilt_motor_get_angle(&pos_rad); */

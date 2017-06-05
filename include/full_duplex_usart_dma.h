@@ -55,12 +55,8 @@ typedef struct {
 /* Public Functions */
 uint8_t full_duplex_usart_dma_up(void);
 uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler);
-void full_duplex_usart_dma_service(void);
 uint8_t full_duplex_usart_dma_add_to_queue(GenericPacket *gp_ptr, FDUD_TxQueueCallback callback_func, uint32_t callback_data);
+void full_duplex_usart_dma_spin(void);
 
-
-void full_duplex_usart_dma_service_rx(void);
-uint8_t full_duplex_usart_dma_get_rx_packet(void);
-void full_duplex_usart_dma_service_tx(void);
 
 #endif
