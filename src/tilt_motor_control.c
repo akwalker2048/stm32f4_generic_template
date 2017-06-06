@@ -1,3 +1,15 @@
+/**
+ * @file tilt_motor_control.c
+ * @author Andrew K. Walker
+ * @date 07 MAY 2017
+ * @brief Brush DC control of rotating LIDAR unit.
+ *
+ * Handles quadrature encoder for position control, flag sensor for homing,
+ * and high level state machine.  Functions in motor_control and TB6612
+ * modules are called for lower level control.
+ */
+
+
 #include "stm32f4xx_conf.h"
 #include "tilt_motor_control.h"
 
@@ -314,6 +326,7 @@ void tilt_motor_init_state_machine(void)
    NVIC_InitTypeDef   NVIC_InitStructure;
 
    uint32_t TimerPeriod = 0;
+   uint16_t pscale = 0;
 
    /* Turn the timer clock on! */
    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
@@ -323,10 +336,11 @@ void tilt_motor_init_state_machine(void)
     * factor of 2 in the denominator. Assumes the Prescaler is 0 and  that
     * TimerPeriod wouldn't roll a 32 bit number.
     */
-   TimerPeriod = (SystemCoreClock / (MOTOR_STATE_MACHINE_HZ * 2)) - 1;
+   pscale = 0;
+   TimerPeriod = (SystemCoreClock / (MOTOR_STATE_MACHINE_HZ * 2 * (pscale + 1))) - 1;
 
    /* Time Base configuration */
-   TIM_TimeBaseStructure.TIM_Prescaler = 0;
+   TIM_TimeBaseStructure.TIM_Prescaler = pscale;
    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
    TIM_TimeBaseStructure.TIM_Period = TimerPeriod;
    TIM_TimeBaseStructure.TIM_ClockDivision = 0;

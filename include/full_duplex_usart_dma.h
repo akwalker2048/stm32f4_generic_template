@@ -8,6 +8,7 @@
 
 /* High level packet information as we will be sending packets. */
 #include "generic_packet.h"
+#include "gp_proj_universal.h"
 #include "gp_circular_buffer.h"
 
 /* Global Variables */

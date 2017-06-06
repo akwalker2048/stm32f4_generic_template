@@ -1,17 +1,12 @@
 /**
-******************************************************************************
-* @file    stm32f4_generic_template/main.c
-* @author  Andrew Walker
-* @version V0.0.1
-* @date    01MAR2017
-* @brief   Main program body
-******************************************************************************
-* @attention
-*
-* <h2><center>&copy; COPYRIGHT 2017 Badger Technologies, LLC</center></h2>
-*
-******************************************************************************
-*/
+ * @file    main.c
+ * @author  Andrew K. Walker
+ * @version V0.0.1
+ * @date    01MAR2017
+ * @brief   Main program body
+ * @attention
+ * <h2><center>&copy; COPYRIGHT 2017 Badger Technologies, LLC</center></h2>
+ */
 
 /* Includes ------------------------------------------------------------------*/
 #include <math.h>

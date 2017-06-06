@@ -1,21 +1,32 @@
+/**
+ * @file full_duplex_usart_dma.c
+ * @author Andrew K. Walker
+ * @date 25 MAY 2017
+ * @brief Functions for implementing performance full duplex USART.
+ *
+ * - This USART is intended to be high speed and high performance.
+ * - This USART is configured using the following hardware.  If you choose to
+ *   change any of these hardware selections...also change this note so that
+ *   it is easy to find/read the resources that are consumed here and that
+ *   might produce conflicts with other hardware.
+ * - USART1
+ *   -# TX -> B6, DMA2_Stream7, DMA_Channel_4
+ *   -# RX -> B7, DMA2_Stream5, DMA_Channel_4
+ *   -# DMA2_Stream7_IRQn, DMA_IT_TC, DMA_IT_TCIF7
+ *   -# 3 MBaud, 8N1, No hardware flow control...
+ * - This USART is intended to TX/RX Generic_Packets as defined in
+ *   generic_packet.h.  I have found this to be very useful in many
+ *   applications.  If you wish to have a raw usart that you are pushing
+ *   characters or less structured bytes...or more structured packets...
+ *   write a different utility and link to that.
+ */
+
+
+
+
+
 /* FULL_DUPLEX_USART_DMA
  *
- * Notes:
- *   +This USART is intended to be high speed and high performance.
- *   +This USART is configured using the following hardware.  If you choose to
- *    change any of these hardware selections...also change this note so that
- *    it is easy to find/read the resources that are consumed here and that
- *    might produce conflicts with other hardware.
- *     -> USART1
- *     -> TX -> B6, DMA2_Stream7, DMA_Channel_4
- *     -> RX -> B7, DMA2_Stream5, DMA_Channel_4
- *     -> DMA2_Stream7_IRQn, DMA_IT_TC, DMA_IT_TCIF7
- *     -> 3 MBaud, 8N1, No hardware flow control...
- *   +This USART is intended to TX/RX Generic_Packets as defined in
- *    generic_packet.h.  I have found this to be very useful in many
- *    applications.  If you wish to have a raw usart that you are pushing
- *    characters or less structured bytes...or more structured packets...
- *    write a different utility and link to that.
  */
 
 #define INIT_VARIABLES
@@ -87,11 +98,7 @@ uint8_t full_duplex_usart_dma_up(void)
 
 
 /* PUBLIC full_duplex_usart_dma_spin
- *
- * Notes:
- *  +This functions is called from the main program while loop.  It allows
- *   all of the processes that need to happen that don't have to be in hard
- *   real time.  We will get to them as quickly as the processor will allow.
+ *   Doxygen documentation for the public functions are in the header file.
  */
 void full_duplex_usart_dma_spin(void)
 {
@@ -102,9 +109,7 @@ void full_duplex_usart_dma_spin(void)
 
 
 /* PUBLIC init_full_duplex_usart_dma
- *
- * Notes:
- *
+ *   Doxygen documentation for the public functions are in the header file.
  */
 uint8_t full_duplex_usart_dma_init(GenericPacketCallback gp_handler)
 {

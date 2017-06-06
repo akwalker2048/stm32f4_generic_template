@@ -1,12 +1,12 @@
 #ifndef HARDWARE_STM32F407G_DISC1_H
 #define HARDWARE_STM32F407G_DISC1_H
 
-#include "generic_packet.h"
-#include "gp_receive.h"
-#include "gp_proj_thermal.h"
-#include "gp_proj_universal.h"
-#include "gp_proj_sonar.h"
-#include "gp_proj_motor.h"
+/* #include "generic_packet.h" */
+/* #include "gp_receive.h" */
+/* #include "gp_proj_thermal.h" */
+/* #include "gp_proj_universal.h" */
+/* #include "gp_proj_sonar.h" */
+/* #include "gp_proj_motor.h" */
 
 #ifndef GIT_REVISION
 #define GIT_REVISION "generic-stm32f4-DEADBEEF"
@@ -39,8 +39,6 @@ void init_tia(void);
 void init_spi(void);
 void init_i2c(void);
 
-uint8_t usart_write_byte(uint8_t data);
-uint8_t usart_write_dma(uint8_t *data_ptr, uint32_t data_len);
 
 void process_rx_buffer(void);
 
@@ -55,15 +53,12 @@ void non_blocking_wait_ms(uint32_t delay_ms);
 /* uint8_t send_gp_packets(void); */
 
 void write_timestamps(void);
-void write_vospi(void);
 
 void write_code_version(void);
 
-GenericPacket * get_next_vospi_ptr(void);
-void increment_vospi_head(void);
 
 /* uint8_t add_gp_to_outgoing(GenericPacket packet); */
-void write_outgoing(void);
+/* void write_outgoing(void); */
 
 uint8_t read_adc(float *vc14, float *vc15);
 
