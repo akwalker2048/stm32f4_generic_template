@@ -18,8 +18,7 @@
 
 #include "full_duplex_usart_dma.h"
 
-#include "hardware_STM32F407G_DISC1.h"
-
+#include "debug.h"
 
 /* Buffers for raw data dma send and receive. */
 uint8_t rs485_slave_dma_tx_buffer[GP_MAX_PACKET_LENGTH];

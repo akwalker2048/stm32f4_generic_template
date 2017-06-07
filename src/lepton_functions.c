@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include "hardware_STM32F407G_DISC1.h"
 #include "lepton_functions.h"
+#include "systick.h"
+#include "debug.h"
 
 /* Serial pc(SERIAL_TX, SERIAL_RX); */
 /* SPI lepton_spi(SPI_MOSI, SPI_MISO, SPI_SCK); */
@@ -27,6 +29,7 @@ volatile uint32_t vospi_circ_buffer_tail = 0;
 uint8_t spi_initialized = 0;
 uint8_t i2c_initialized = 0;
 
+volatile uint8_t grab_frame = 0;
 
 /* uint8_t lepton_mega_packet[VOSPI_ALL_IMAGE_FRAME_BYTES]; */
 /* uint8_t lepton_frame_packet[VOSPI_FRAME_SIZE]; */
@@ -144,7 +147,7 @@ void lepton_transfer(void)
             /* We aren't at the start of an image yet. */
             ii=-1;
             resets++;
-            blocking_wait_ms(1);
+            systick_delay_ms(1);
          }
       }
 
@@ -232,7 +235,7 @@ void lepton_transfer(void)
 void spi_cs_enable(void)
 {
    GPIO_ResetBits(GPIOB, SPI_PIN_CS_AL);
-   blocking_wait_ms(1);
+   systick_delay_ms(1);
 }
 
 void spi_cs_disable(void)

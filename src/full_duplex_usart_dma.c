@@ -36,8 +36,7 @@
 
 #include "circular_buffer.h"
 
-#include "hardware_STM32F407G_DISC1.h"
-
+#include "debug.h"
 
 
 /* Private Defines */
@@ -339,7 +338,6 @@ void full_duplex_usart_dma_service_rx(void)
          {
             retval_gpcb = gpcb_receive_byte(rx_byte, &fdud_rx_gpcb);
 
-
             if(retval_gpcb == GP_CHECKSUM_MATCH)
             {
                /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_BLUE) == Bit_SET) */
@@ -350,6 +348,17 @@ void full_duplex_usart_dma_service_rx(void)
                /* { */
                /*    GPIO_SetBits(GPIOD, LED_PIN_BLUE); */
                /* } */
+
+               if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET)
+               {
+                  GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);
+               }
+               else
+               {
+                  GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
+               }
+
+
 
             }
 

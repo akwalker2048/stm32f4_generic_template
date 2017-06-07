@@ -15,7 +15,15 @@
 #include "system_stm32f4xx.h"
 
 #include "main.h"
-#include "hardware_STM32F407G_DISC1.h"
+#include "systick.h"
+#include "pushbutton.h"
+#include "debug.h"
+#include "analog_input.h"
+
+/** @todo All references to the hardware_STM32F407G_DISC1.h header should go
+ *  away soon.
+ */
+/* #include "hardware_STM32F407G_DISC1.h" */
 
 #include "full_duplex_usart_dma.h"
 #include "rx_packet_handler.h"
@@ -74,7 +82,7 @@ int main(void)
 
    /* SystemCoreClockUpdate(); */
 
-   init_gpio();
+   debug_init();
    /* init_usart_one(); */
    /* init_usart_one_dma(); */
 
@@ -85,13 +93,14 @@ int main(void)
    full_duplex_usart_dma_init(rx_packet_handler_ptr);
 
    /* init_usart_three(); */
-   init_pushbutton();
+   pushbutton_init();
 
    /* init_spi(); */
    /* init_i2c(); */
 
-   init_systick();
-   init_adc();
+   systick_init();
+
+   analog_input_init();
 
    /* Cannot RS485 and Tilt!!!! Pin A2 */
    rs485_sensor_bus_init_slave();
@@ -127,24 +136,22 @@ int main(void)
       /* process_usart3_buffer(); */
 
 
+
       rs485_master_spin();
-
       rs485_slave_spin();
-
       full_duplex_usart_dma_spin();
 
 
 
       /* At least figure out if we got here... */
-      if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET)
+      if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET)
       {
-         GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);
+         GPIO_ResetBits(GPIOD, LED_PIN_GREEN);
       }
       else
       {
-         GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
+         GPIO_SetBits(GPIOD, LED_PIN_GREEN);
       }
-
 
 
 
