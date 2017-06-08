@@ -118,7 +118,8 @@ void lepton_transfer(void)
 
    static uint16_t image_num = 0;
 
-   GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
+   /* GPIO_SetBits(GPIOD, LED_PIN_ORANGE); */
+   debug_output_set(DEBUG_LED_ORANGE);
 
    last_frame_number = -1;
    resets = 0;
@@ -197,7 +198,8 @@ void lepton_transfer(void)
 
 
 
-   GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);
+   /* GPIO_ResetBits(GPIOD, LED_PIN_ORANGE); */
+   debug_output_clear(DEBUG_LED_ORANGE);
 
 }
 

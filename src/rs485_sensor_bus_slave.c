@@ -89,7 +89,8 @@ void TIM1_UP_TIM10_IRQHandler(void)
    {
       rs485_slave_state_timer++;
 
-      GPIO_SetBits(GPIOD, LED_PIN_BLUE);
+      /* GPIO_SetBits(GPIOD, LED_PIN_BLUE); */
+      debug_output_set(DEBUG_LED_BLUE);
 
       /* Always move received data out of the dma buffer to be processed outside
        * of the interrupt.  We don't want to take too long in here.
@@ -106,7 +107,8 @@ void TIM1_UP_TIM10_IRQHandler(void)
             break;
       } /* switch(slave_state) */
 
-      GPIO_ResetBits(GPIOD, LED_PIN_BLUE);
+      /* GPIO_ResetBits(GPIOD, LED_PIN_BLUE); */
+      debug_output_clear(DEBUG_LED_BLUE);
 
       TIM_ClearITPendingBit(TIM10, TIM_IT_Update);
    }
@@ -521,12 +523,13 @@ void rs485_slave_process_rx_dma(void)
          retval = cb_get_byte(&cb_slave_dma_rx, &rx_byte);
          if(retval == CB_SUCCESS)
          {
-            GPIO_SetBits(GPIOD, LED_PIN_RED);
+            /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
+            debug_output_set(DEBUG_LED_RED);
 
             retval = cb_add_byte(&cb_slave_ram_rx, rx_byte);
 
-            GPIO_ResetBits(GPIOD, LED_PIN_RED);
-
+            /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
+            debug_output_clear(DEBUG_LED_RED);
          }
       }while(retval == CB_SUCCESS);
 

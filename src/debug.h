@@ -15,14 +15,31 @@
 #define GIT_REVISION "generic-stm32f4-DEADBEEF"
 #endif
 
-/* Green  - D12 */
-#define LED_PIN_GREEN    GPIO_Pin_12
-/* Orange - D13 */
-#define LED_PIN_ORANGE   GPIO_Pin_13
-/* Red    - D14 */
-#define LED_PIN_RED      GPIO_Pin_14
-/* Blue   - D15 */
-#define LED_PIN_BLUE     GPIO_Pin_15
+typedef enum {DEBUG_LED_GREEN = 0,
+              DEBUG_LED_ORANGE,
+              DEBUG_LED_RED,
+              DEBUG_LED_BLUE,
+              NUM_DEBUG} debug_outputs;
+
+typedef enum {DEBUG_STATE_CLEAR = 0,
+              DEBUG_STATE_SET,
+              DEBUG_STATE_BLINK} debug_states;
+
+
+typedef enum {DEBUG_BLINK_NONE = 0,
+              DEBUG_BLINK_SLOW,
+              DEBUG_BLINK_MEDIUM,
+              DEBUG_BLINK_FAST,
+              DEBUG_BLINK_ERROR} debug_blink_rate;
+
+typedef struct {
+   debug_outputs name;
+   debug_states state;
+   debug_blink_rate blink;
+   uint8_t initialized;
+   GPIO_TypeDef *port;
+   uint16_t pin;
+} debug_struct;
 
 
 /**
@@ -33,5 +50,41 @@
  * @return None
  */
 void debug_init(void);
+
+/**
+ * @fn void debug_output_set(debug_outputs out)
+ * @brief Set this debug pin high...
+ *
+ * @param None
+ * @return None
+ */
+void debug_output_set(debug_outputs out);
+
+/**
+ * @fn void debug_output_clear(debug_outputs out)
+ * @brief Set this debug pin low...
+ *
+ * @param None
+ * @return None
+ */
+void debug_output_clear(debug_outputs out);
+
+/**
+ * @fn void debug_output_toggle(debug_outputs out)
+ * @brief Set this debug pin the opposite of it's current state...
+ *
+ * @param None
+ * @return None
+ */
+void debug_output_toggle(debug_outputs out);
+
+/**
+ * @fn void debug_output_blink(debug_outputs out, debug_blink_rate rate)
+ * @brief Make this pin toggle indefinitely at a fixed rate.
+ *
+ * @param None
+ * @return None
+ */
+void debug_output_blink(debug_outputs out, debug_blink_rate rate);
 
 #endif

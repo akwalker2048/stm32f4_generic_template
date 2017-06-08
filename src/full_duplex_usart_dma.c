@@ -307,7 +307,8 @@ uint8_t full_duplex_usart_dma_add_to_queue(GenericPacket *gp_ptr, FDUD_TxQueueCa
    else
    {
 
-      GPIO_SetBits(GPIOD, LED_PIN_RED);
+      /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
+      debug_output_set(DEBUG_LED_RED);
 
       return FDUD_FAIL_NOT_INITIALIZED;
    }
@@ -349,15 +350,15 @@ void full_duplex_usart_dma_service_rx(void)
                /*    GPIO_SetBits(GPIOD, LED_PIN_BLUE); */
                /* } */
 
-               if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET)
-               {
-                  GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);
-               }
-               else
-               {
-                  GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
-               }
-
+               /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET) */
+               /* { */
+               /*    GPIO_ResetBits(GPIOD, LED_PIN_ORANGE); */
+               /* } */
+               /* else */
+               /* { */
+               /*    GPIO_SetBits(GPIOD, LED_PIN_ORANGE); */
+               /* } */
+               debug_output_toggle(DEBUG_LED_ORANGE);
 
 
             }

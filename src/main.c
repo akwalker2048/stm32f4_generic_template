@@ -144,15 +144,15 @@ int main(void)
 
 
       /* At least figure out if we got here... */
-      if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET)
-      {
-         GPIO_ResetBits(GPIOD, LED_PIN_GREEN);
-      }
-      else
-      {
-         GPIO_SetBits(GPIOD, LED_PIN_GREEN);
-      }
-
+      /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET) */
+      /* { */
+      /*    GPIO_ResetBits(GPIOD, LED_PIN_GREEN); */
+      /* } */
+      /* else */
+      /* { */
+      /*    GPIO_SetBits(GPIOD, LED_PIN_GREEN); */
+      /* } */
+      debug_output_toggle(DEBUG_LED_GREEN);
 
 
       /* tilt_motor_get_angle(&pos_rad); */

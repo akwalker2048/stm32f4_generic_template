@@ -21,15 +21,8 @@ void EXTI0_IRQHandler(void)
 {
    if(EXTI_GetITStatus(EXTI_Line0) != RESET)
    {
-      /* Toggle LED1 */
-      if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET)
-      {
-         GPIO_ResetBits(GPIOD, LED_PIN_ORANGE);
-      }
-      else
-      {
-         GPIO_SetBits(GPIOD, LED_PIN_ORANGE);
-      }
+
+      debug_output_toggle(DEBUG_LED_ORANGE);
 
       /* Zero the tilt motor here for now.  Eventually, we need to tie that to
          the pin that will actually have the flag piped in. */
