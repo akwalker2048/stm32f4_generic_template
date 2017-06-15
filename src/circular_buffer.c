@@ -1,7 +1,25 @@
+/**
+ * @file circular_buffer.c
+ * @author Andrew K. Walker
+ * @date 23 MAY 2017
+ * @brief Circular buffer library.
+ *
+ * This includes code for working with a ciruclar buffer made up of uint8_t's.
+ * It's main purpose is to handle data coming in on a DMA circular buffer and
+ * subsequently handled in a RAM buffer that can be handled in a lower priority
+ * function.
+ */
+
+
 #include "circular_buffer.h"
 #include <stdlib.h>
 
-/* External Calls */
+/* Used Internally */
+uint8_t cb_increment_temp_head(circular_buffer_t *cb);
+uint8_t cb_increment_head(circular_buffer_t *cb);
+uint8_t cb_increment_tail(circular_buffer_t *cb);
+
+/* Public Function - Doxygen documentation is in the header file. */
 uint8_t cb_init(circular_buffer_t *cb, uint8_t *data, uint16_t size)
 {
 
@@ -31,6 +49,7 @@ uint8_t cb_init(circular_buffer_t *cb, uint8_t *data, uint16_t size)
 
 }
 
+/* Public Function - Doxygen documentation is in the header file. */
 uint8_t cb_add_byte(circular_buffer_t *cb, uint8_t byte)
 {
    uint8_t retval;
@@ -45,6 +64,7 @@ uint8_t cb_add_byte(circular_buffer_t *cb, uint8_t byte)
    return retval;
 }
 
+/* Public Function - Doxygen documentation is in the header file. */
 uint8_t cb_get_byte(circular_buffer_t *cb, uint8_t *byte)
 {
    uint8_t retval, retval_inc_tail;
@@ -63,7 +83,35 @@ uint8_t cb_get_byte(circular_buffer_t *cb, uint8_t *byte)
    return retval;
 }
 
-/* Used Internally */
+/* Public Function - Doxygen documentation is in the header file. */
+uint8_t cb_set_head_dma(circular_buffer_t *cb, uint16_t head_dma)
+{
+
+   if(head_dma <= cb->cb_size)
+   {
+      cb->cb_head = head_dma;
+   }
+   else
+   {
+      return CB_ERROR_DMA_HEAD_OOR;
+   }
+
+   return CB_SUCCESS;
+}
+
+
+/**
+ *
+ * @fn uint8_t cb_increment_temp_head(circular_buffer_t *cb)
+ * @brief Moves the temp head forward one.
+ * @param *cb Pointer to the circular_buffer_t data structure.
+ * @return uint8_t Circular buffer return code.
+ *
+ * The temp head points to the location currently being written.  The actual
+ * head isn't incremented until the write is complete and the data is ready
+ * to be read.
+ *
+ */
 uint8_t cb_increment_temp_head(circular_buffer_t *cb)
 {
    uint16_t temp_temp_head;
@@ -91,7 +139,17 @@ uint8_t cb_increment_temp_head(circular_buffer_t *cb)
 
 }
 
-
+/**
+ *
+ * @fn uint8_t cb_increment_head(circular_buffer_t *cb)
+ * @brief Moves the head forward one once the data has been written.
+ * @param *cb Pointer to the circular_buffer_t data structure.
+ * @return uint8_t Circular buffer return code.
+ *
+ * @todo Do we need to add an asm("DSB") or the like to make sure that the
+ * address really is ready to be read????
+ *
+ */
 uint8_t cb_increment_head(circular_buffer_t *cb)
 {
    /* This should always be safe...because we didn't increment head_temp unless
@@ -103,6 +161,14 @@ uint8_t cb_increment_head(circular_buffer_t *cb)
 
 }
 
+/**
+ *
+ * @fn uint8_t cb_increment_tail(circular_buffer_t *cb)
+ * @brief Moves the tail ahead one after the next byte has been read.
+ * @param *cb Pointer to the circular_buffer_t data structure.
+ * @return uint8_t Circular buffer return code.
+ *
+ */
 uint8_t cb_increment_tail(circular_buffer_t *cb)
 {
    if(cb->cb_tail != cb->cb_head)
@@ -122,20 +188,3 @@ uint8_t cb_increment_tail(circular_buffer_t *cb)
 
 }
 
-/* This function is used when the DMA hardware is in control of the head
- * pointer.
- */
-uint8_t cb_set_head_dma(circular_buffer_t *cb, uint16_t head_dma)
-{
-
-   if(head_dma <= cb->cb_size)
-   {
-      cb->cb_head = head_dma;
-   }
-   else
-   {
-      return CB_ERROR_DMA_HEAD_OOR;
-   }
-
-   return CB_SUCCESS;
-}

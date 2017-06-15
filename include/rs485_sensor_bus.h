@@ -1,6 +1,3 @@
-#ifndef RS485_SENSOR_BUS_H
-#define RS485_SENSOR_BUS_H
-
 /**
  * @file rs485_sensor_bus.h
  * @author Andrew K. Walker
@@ -11,6 +8,8 @@
  * sensor bus.
  */
 
+#ifndef RS485_SENSOR_BUS_H
+#define RS485_SENSOR_BUS_H
 
 #include <stdint.h>
 

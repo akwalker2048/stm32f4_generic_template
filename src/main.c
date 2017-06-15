@@ -141,17 +141,6 @@ int main(void)
       rs485_slave_spin();
       full_duplex_usart_dma_spin();
 
-
-
-      /* At least figure out if we got here... */
-      /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET) */
-      /* { */
-      /*    GPIO_ResetBits(GPIOD, LED_PIN_GREEN); */
-      /* } */
-      /* else */
-      /* { */
-      /*    GPIO_SetBits(GPIOD, LED_PIN_GREEN); */
-      /* } */
       debug_output_toggle(DEBUG_LED_GREEN);
 
 

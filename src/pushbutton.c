@@ -50,7 +50,7 @@ void pushbutton_init(void)
    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-   GPIO_Init(GPIOD, &GPIO_InitStructure);
+   GPIO_Init(GPIOA, &GPIO_InitStructure);
 
    /* Connect EXTI Line0 to PA0 pin */
    SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOA, EXTI_PinSource0);
