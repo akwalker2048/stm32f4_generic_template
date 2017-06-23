@@ -15,11 +15,25 @@
 uint8_t TMC260_initialized = 0;
 /* uint16_t TIM1_Period = 0; */
 
+/* Global variables to store the current state of all control registers. */
+uint32_t TMC260_DRVCTRL_regval = 0;
+uint32_t TMC260_CHOPCONF_regval = 0;
+uint32_t TMC260_SMARTEN_regval = 0;
+uint32_t TMC260_SGSCONF_regval = 0;
+uint32_t TMC260_DRVCONF_regval = 0;
+
+/* Private Function Prototypes */
+void TMC260_init_gpio(void);
+void TMC260_init_spi(void);
+void TMC260_init_config(void);
+
 /* Public function.  Doxygen documentation is in the header file. */
 void TMC260_initialize(void)
 {
 
    TMC260_init_gpio();
+   TMC260_init_spi();
+   TMC260_init_config();
    TMC260_initialized = 1;
 
 }
@@ -108,6 +122,252 @@ void EXTI2_IRQHandler(void)
 
 
 /**
+ *
+ * @fn void TMC260_init_spi(void)
+ * @brief Initialize SPI for TMC260 configuration and control.
+ * @param NONE
+ * @return NONE
+ *
+ * Using SPI1 for configuration and control.  Speed is set by the internal
+ * oscillator on the TMC260.  It is at 15 MHz.  To be stable, Trinamic suggests
+ * that the speed is set to < 0.90*15000000.0/2.0 ~ 6750000 Hz...
+ *
+ * Baud Rate Prescaler of 32 should give us 168 MHz / 32 = 5250000 Hz...
+ *
+ */
+void TMC260_init_spi(void)
+{
+   SPI_InitTypeDef  SPI_InitStructure;
+   GPIO_InitTypeDef GPIO_InitStructure;
+   /* NVIC_InitTypeDef NVIC_InitStructure; */
+
+   /* Peripheral Clock Enable -------------------------------------------------*/
+   /* Enable the SPI clock */
+   RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);
+
+   /* Enable GPIO clocks */
+   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+
+   /* Connect SPI pins to AF5 */
+   GPIO_PinAFConfig(GPIOA, GPIO_PinSource5, GPIO_AF_SPI3);
+   GPIO_PinAFConfig(GPIOA, GPIO_PinSource6, GPIO_AF_SPI3);
+   GPIO_PinAFConfig(GPIOA, GPIO_PinSource7, GPIO_AF_SPI3);
+
+   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_DOWN;
+
+   /* SPI SCK pin configuration */
+   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+   GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+   /* SPI  MISO pin configuration */
+   GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_6;
+   GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+   /* SPI  MOSI pin configuration */
+   GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_7;
+   GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+   /* SPI Chip Select was already configured in TMC260_init_gpio */
+
+   /* SPI configuration -------------------------------------------------------*/
+   SPI_I2S_DeInit(SPI1);
+   SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
+   SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
+   SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
+   SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;
+   SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
+   SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
+   SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_32;
+   SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
+   SPI_InitStructure.SPI_CRCPolynomial = 7;
+   SPI_Init(SPI1, &SPI_InitStructure);
+
+   /* Enable the SPI peripheral */
+   SPI_Cmd(SPI1, ENABLE);
+
+}
+
+
+/**
+ * @fn uint8_t TMC260_spi_write_byte(uint8_t byte)
+ * @brief Reads a single byte from the SPI interface on the TMC260.
+ *
+ * @param uint8_t Byte that is to be written to the TMC260.
+ * @return uint8_t TMC260 return status.
+ *
+ * @todo Because 20bit datagrams need to be written, this will likely need to be
+ *       called from the write datagram function.
+ */
+uint8_t TMC260_spi_write_byte(uint8_t byte)
+{
+
+   while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_TXE) == RESET);
+   SPI_I2S_SendData(SPI1, (uint16_t)byte);
+
+   return TMC260_SUCCESS;
+}
+
+/**
+ * @fn uint8_t TMC260_spi_read_byte(uint8_t *byte)
+ * @brief Reads a single byte from the SPI interface on the TMC260.
+ *
+ * @param uint8_t* Byte that is read from the TMC260.
+ * @return uint8_t TMC260 return status.
+ *
+ * @todo Determine if this will actually work for the TMC260.  It may be
+ *       necessary to read a full 20bit datagram at a time.
+ */
+uint8_t TMC260_spi_read_byte(uint8_t *byte)
+{
+   uint16_t tmpval;
+
+   while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_TXE) == RESET);
+   SPI_I2S_SendData(SPI1, (uint16_t)0x00);
+   while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_RXNE) == RESET);
+   tmpval = SPI_I2S_ReceiveData(SPI1);
+   *byte = (uint8_t)(tmpval & 0xFF);
+
+   return TMC260_SUCCESS;
+}
+
+/**
+ * @fn uint8_t TMC260_spi_write_read_byte(uint8_t write_byte, uint8_t *read_byte)
+ * @brief Writes a byte and returns the read byte.
+ *
+ * @param uint8_t  Byte (write_byte) to be written to the TMC260.
+ * @param uint8_t* Byte (read_byte) that is read from the TMC260.
+ * @return uint8_t TMC260 return status.
+ *
+ * @todo Determine if this will actually work for the TMC260.  It may be
+ *       necessary to read and write a full 20bit datagram at a time.
+ */
+uint8_t TMC260_spi_write_read_byte(uint8_t write_byte, uint8_t *read_byte)
+{
+   uint16_t tmpval;
+
+   while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_TXE) == RESET);
+   SPI_I2S_SendData(SPI1, (uint16_t)write_byte);
+   while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_RXNE) == RESET);
+   tmpval = SPI_I2S_ReceiveData(SPI1);
+   *read_byte = (uint8_t)(tmpval & 0xFF);
+
+   return TMC260_SUCCESS;
+}
+
+
+/**
+ * @fn uint8_t TMC260_spi_write_datagram(uint32_t datagram)
+ * @brief Writes a 20 bit datagram to the TMC260.
+ *
+ * @param uint32_t The datagram to be written
+ * @return uint8_t TMC260 return status.
+ *
+ * This function assumes that the uint32_t datagram value is the register data
+ * to be written to the TMC260.  The incoming value is expected to have the bits
+ * aligned in bit positions 0-19 as outlined in the TMC260 specification.  It
+ * be shifted appropriately in this fucntion and the bytes sent in the correct
+ * order to write the register.
+ */
+uint8_t TMC260_write_datagram(uint32_t datagram)
+{
+   uint8_t retval;
+   uint32_t sdatagram;
+   uint8_t byte1, byte2, byte3;
+
+   sdatagram = (datagram<<12);
+   byte1 = (sdatagram>>16)&0xFF;
+   byte2 = (sdatagram>>8)&0xFF;
+   byte3 = sdatagram&0xFF;
+
+   /** @todo Is there any way to really check the retval here?  Not sure it
+    *        really matters.  I think we'd want to write all the bytes anyway.
+    */
+   retval = TMC260_spi_write_byte(byte1);
+   retval = TMC260_spi_write_byte(byte2);
+   retval = TMC260_spi_write_byte(byte3);
+
+   return TMC260_SUCCESS;
+}
+
+uint8_t TMC260_spi_read_status(tmc260_status_type status_type, tmc260_status_struct *status_struct)
+{
+   uint8_t retval;
+   uint32_t read_datagram;
+
+   /* First Clear the RDSEL bits. */
+   TMC260_DRVCONF_regval &= ~TMC260_DRVCONF_RDSEL_MASK;
+   /* Now set the RSDEL bits with the desired status type. */
+   TMC260_DRVCONF_regval |= (status_type<<TMC260_DRVCONF_RDSEL_SHIFT)&TMC260_DRVCONF_RDSEL_MASK;
+   /* Now first write the DRVCONF register with the new value. */
+   retval = TMC260_spi_write_datagram(TMC260_DRVCONF_regval);
+   /* Now, write it again...this time the return value will reflect the
+    * status type changes from the previous write.
+    */
+   retval = TMC260_spi_read_write_datagram(TMC260_DRVCONF_regval, &read_datagram);
+   /* Lastly...parse the return data into the status struct. */
+
+
+   return TMC260_SUCCESS;
+}
+
+
+/**
+ * @fn uint8_t TMC260_read_write_datagram(uint32_t write_datagram, uint32_t *read_datagram)
+ * @brief Writes a datagram and reads the response.
+ *
+ * @param uint32_t  write_datagram to be written to the TMC260.
+ * @param uint32_t* read_datagram that is read from the TMC260.
+ * @return uint8_t TMC260 return status.
+ *
+ */
+uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_datagram)
+{
+   uint8_t retval;
+   uint32_t sdatagram;
+   uint8_t byte1, byte2, byte3;
+   uint8_t rb1, rb2, rb3;
+
+   sdatagram = (write_datagram<<12);
+   byte1 = (sdatagram>>16)&0xFF;
+   byte2 = (sdatagram>>8)&0xFF;
+   byte3 = sdatagram&0xFF;
+
+   /** @todo Is there any way to really check the retval here?  Not sure it
+    *        really matters.  I think we'd want to write all the bytes anyway.
+    */
+   retval = TMC260_spi_write_read_byte(byte1, &rb1);
+   retval = TMC260_spi_write_read_byte(byte2, &rb2);
+   retval = TMC260_spi_write_read_byte(byte3, &rb3);
+
+   *read_datagram = 0x00000000;
+   *read_datagram |= (rb1<<16)&0x00FF0000;
+   *read_datagram |= (rb2<<8)&0x0000FF00;
+   *read_datagram |= rb3&0x00000000FF;
+
+   return TMC260_SUCCESS;
+}
+
+
+/**
+ * @fn void TMC260_init_config(void)
+ * @brief Sets up the initial state of all control registers for the TMC260.
+ *
+ * @param NONE
+ * @return NONE
+ *
+ * @todo Determine desired state of the control registers and write them.  Put
+ *       some debugging in to make sure that things are set properly.
+ *
+ */
+void TMC260_init_config(void)
+{
+
+}
+
+/**
  * @fn uint8_t TMC260_send_drvctrl_sdoff(uint8_t ph_a_dir, uint8_t ph_a_cur, uint8_t ph_b_dir, uint8_t ph_b_cur)
  * @brief Packs outgoing data and writes drvctrl reg when not using step/dir.
  *
@@ -130,6 +390,14 @@ uint8_t TMC260_send_drvctrl_sdoff(uint8_t ph_a_dir, uint8_t ph_a_cur, uint8_t ph
    regval |= (ph_b_cur << TMC260_DRVCTRL_SDOFF_PHB_CUR_SHIFT)&&TMC260_DRVCTRL_SDOFF_PHB_CUR_MASK;
 
    /** @todo Call the spi send register value function here once it is set up! */
+
+
+   /** @todo Should only set this variable if the SPI register write was a
+    *        success.  Unfortunately, I don't think the TMC260 allows you to
+    *        read the config registers back.  The status datagram returned
+    *        doesn't actually contain this info.
+    */
+   TMC260_DRVCTRL_regval = regval;
 
    return TMC260_SUCCESS;
 

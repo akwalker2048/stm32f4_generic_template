@@ -54,15 +54,39 @@ typedef enum {MICROSTEP_CONFIG_1 = 0,
 
 /* DRVCTRL Register Shifts and Masks if SDOFF = 0 (Step/Dir Mode) */
 #define TMC260_DRVCTRL_SDON_INTPOL_SHIFT 9
-#define TMC260_DRVCTRL_SDON_INTPOL_MASK 0x00000200
-#define TMC260_DRVCTRL_SDON_DEDGE_SHIFT 8
-#define TMC260_DRVCTRL_SDON_DEDGE_MASK  0x00000100
-#define TMC260_DRVCTRL_SDON_MRES_SHIFT 0
-#define TMC260_DRVCTRL_SDON_MRES_MASK  0x0000000F
+#define TMC260_DRVCTRL_SDON_INTPOL_MASK  0x00000200
+#define TMC260_DRVCTRL_SDON_DEDGE_SHIFT  8
+#define TMC260_DRVCTRL_SDON_DEDGE_MASK   0x00000100
+#define TMC260_DRVCTRL_SDON_MRES_SHIFT   0
+#define TMC260_DRVCTRL_SDON_MRES_MASK    0x0000000F
+
+/* DRVCONF Register Shifts and Masks */
+#define TMC260_DRVCONF_TST_SHIFT    16
+#define TMC260_DRVCONF_TST_MASK     0x00010000
+#define TMC260_DRVCONF_SLPH_SHIFT   14
+#define TMC260_DRVCONF_SLPH_MASK    0x0000C000
+#define TMC260_DRVCONF_SLPL_SHIFT   12
+#define TMC260_DRVCONF_SLPL_MASK    0x00003000
+#define TMC260_DRVCONF_DISS2G_SHIFT 10
+#define TMC260_DRVCONF_DISS2G_MASK  0x00000400
+#define TMC260_DRVCONF_TS2G_SHIFT   8
+#define TMC260_DRVCONF_TS2G_MASK    0x00000300
+#define TMC260_DRVCONF_SDOFF_SHIFT  7
+#define TMC260_DRVCONF_SDOFF_MASK   0x00000080
+#define TMC260_DRVCONF_VSENSE_SHIFT 6
+#define TMC260_DRVCONF_VSENSE_MASK  0x00000040
+#define TMC260_DRVCONF_RDSEL_SHIFT  4
+#define TMC260_DRVCONF_RDSEL_MASK   0x00000030
+
 
 /* CHOPCONF Register Shifts and Masks */
 #define TMC260_CHOPCONF_TBL_SHIFT 15
 #define TMC260_CHOPCONF_TBL_MASK
+
+
+typedef enum {TMC260_STATUS_POSITION = 0,
+              TMC260_STATUS_STALLGUARD,
+              TMC260_STATUS_CURRENT} tmc260_status_types;
 
 
 /* SMARTEN Register Shifts and Masks */
@@ -73,8 +97,20 @@ typedef enum {MICROSTEP_CONFIG_1 = 0,
 
 
 typedef struct {
-
-} tmc260_status;
+   tmc260_status_types status_type;
+   uint16_t position;
+   uint16_t stall_guard;
+   uint16_t current;
+   uint8_t status_byte;
+   uint8_t STST:1;
+   uint8_t OLB:1;
+   uint8_t OLA:1;
+   uint8_t S2GB:1;
+   uint8_t S2GA:1;
+   uint8_t OTPW:1;
+   uint8_t OT:1;
+   uint8_t SG:1;
+} tmc260_status_struct;
 
 typedef struct {
 
