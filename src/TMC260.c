@@ -19,13 +19,25 @@ uint8_t TMC260_initialized = 0;
 uint32_t TMC260_DRVCTRL_regval = 0;
 uint32_t TMC260_CHOPCONF_regval = 0;
 uint32_t TMC260_SMARTEN_regval = 0;
-uint32_t TMC260_SGSCONF_regval = 0;
+uint32_t TMC260_SGCSCONF_regval = 0;
 uint32_t TMC260_DRVCONF_regval = 0;
 
 /* Private Function Prototypes */
 void TMC260_init_gpio(void);
 void TMC260_init_spi(void);
 void TMC260_init_config(void);
+uint8_t TMC260_spi_write_byte(uint8_t byte);
+uint8_t TMC260_spi_read_byte(uint8_t *byte);
+uint8_t TMC260_spi_write_read_byte(uint8_t write_byte, uint8_t *read_byte);
+uint8_t TMC260_spi_write_datagram(uint32_t datagram);
+uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_datagram);
+uint8_t TMC260_send_drvctrl_sdoff(uint8_t ph_a_dir, uint8_t ph_a_cur, uint8_t ph_b_dir, uint8_t ph_b_cur);
+uint8_t TMC260_send_drvctrl_sdon(uint8_t intpol, uint8_t dedge, microstep_config mres);
+uint8_t TMC260_send_chopconf(uint8_t tbl, uint8_t chm, uint8_t rndtf, uint8_t hdec, uint8_t hend, uint8_t hstrt, uint8_t toff);
+uint8_t TMC260_send_smarten(uint8_t seimin, uint8_t sedn, uint8_t semax, uint8_t seup, uint8_t semin);
+uint8_t TMC260_send_sgcsconf(uint8_t sfilt, uint8_t sgt, uint8_t cs);
+uint8_t TMC260_send_drvconf(uint8_t tst, uint8_t slph, uint8_t slpl, uint8_t diss2g, uint8_t ts2g, uint8_t sdoff, uint8_t vsense, uint8_t rdsel);
+
 
 /* Public function.  Doxygen documentation is in the header file. */
 void TMC260_initialize(void)
@@ -271,7 +283,7 @@ uint8_t TMC260_spi_write_read_byte(uint8_t write_byte, uint8_t *read_byte)
  * be shifted appropriately in this fucntion and the bytes sent in the correct
  * order to write the register.
  */
-uint8_t TMC260_write_datagram(uint32_t datagram)
+uint8_t TMC260_spi_write_datagram(uint32_t datagram)
 {
    uint8_t retval;
    uint32_t sdatagram;
@@ -292,10 +304,10 @@ uint8_t TMC260_write_datagram(uint32_t datagram)
    return TMC260_SUCCESS;
 }
 
-uint8_t TMC260_spi_read_status(tmc260_status_type status_type, tmc260_status_struct *status_struct)
+uint8_t TMC260_spi_read_status(tmc260_status_types status_type, tmc260_status_struct *status_struct)
 {
    uint8_t retval;
-   uint32_t read_datagram;
+   uint32_t rd;
 
    /* First Clear the RDSEL bits. */
    TMC260_DRVCONF_regval &= ~TMC260_DRVCONF_RDSEL_MASK;
@@ -306,7 +318,7 @@ uint8_t TMC260_spi_read_status(tmc260_status_type status_type, tmc260_status_str
    /* Now, write it again...this time the return value will reflect the
     * status type changes from the previous write.
     */
-   retval = TMC260_spi_read_write_datagram(TMC260_DRVCONF_regval, &read_datagram);
+   retval = TMC260_spi_read_write_datagram(TMC260_DRVCONF_regval, &rd);
    /* Lastly...parse the return data into the status struct. */
 
 
@@ -331,9 +343,9 @@ uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_d
    uint8_t rb1, rb2, rb3;
 
    sdatagram = (write_datagram<<12);
-   byte1 = (sdatagram>>16)&0xFF;
-   byte2 = (sdatagram>>8)&0xFF;
-   byte3 = sdatagram&0xFF;
+   byte1 = (sdatagram>>16) & 0xFF;
+   byte2 = (sdatagram>>8)  & 0xFF;
+   byte3 = sdatagram       & 0xFF;
 
    /** @todo Is there any way to really check the retval here?  Not sure it
     *        really matters.  I think we'd want to write all the bytes anyway.
@@ -343,9 +355,9 @@ uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_d
    retval = TMC260_spi_write_read_byte(byte3, &rb3);
 
    *read_datagram = 0x00000000;
-   *read_datagram |= (rb1<<16)&0x00FF0000;
-   *read_datagram |= (rb2<<8)&0x0000FF00;
-   *read_datagram |= rb3&0x00000000FF;
+   *read_datagram |= (rb1<<16) & 0x00FF0000;
+   *read_datagram |= (rb2<<8)  & 0x0000FF00;
+   *read_datagram |= rb3       & 0x000000FF;
 
    return TMC260_SUCCESS;
 }
@@ -364,7 +376,16 @@ uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_d
  */
 void TMC260_init_config(void)
 {
-
+   /* No step interpoloation, step on both edges, full stepping... */
+   TMC260_send_drvctrl_sdon(0, 1, MCIROSTEP_CONFIG_1);
+   /* */
+   TMC260_send_chopconf(0x02, 0x01, 0x00, 0x00, 0x10, 0x05, 0x07);
+   /* */
+   TMC260_send_smarten(0x01, 0x00, 0x02, 0x00, 0x02);
+   /* */
+   TMC260_send_sgcsconf(0x01, 0x00, 0x1F);
+   /* */
+   TMC260_send_drvconf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
 }
 
 /**
@@ -376,6 +397,7 @@ void TMC260_init_config(void)
  */
 uint8_t TMC260_send_drvctrl_sdoff(uint8_t ph_a_dir, uint8_t ph_a_cur, uint8_t ph_b_dir, uint8_t ph_b_cur)
 {
+   uint8_t retval;
    uint32_t regval;
 
    if((ph_a_dir > 1)||(ph_b_dir > 1))
@@ -383,14 +405,14 @@ uint8_t TMC260_send_drvctrl_sdoff(uint8_t ph_a_dir, uint8_t ph_a_cur, uint8_t ph
       return TMC260_ERROR_INVALID_INPUT;
    }
 
-   regval = 0x00000000;
+   regval = TMC260_DRVCTRL_SDOFF_INIT;
    regval |= (ph_a_dir << TMC260_DRVCTRL_SDOFF_PHA_DIR_SHIFT)&&TMC260_DRVCTRL_SDOFF_PHA_DIR_MASK;
    regval |= (ph_a_cur << TMC260_DRVCTRL_SDOFF_PHA_CUR_SHIFT)&&TMC260_DRVCTRL_SDOFF_PHA_CUR_MASK;
    regval |= (ph_b_dir << TMC260_DRVCTRL_SDOFF_PHB_DIR_SHIFT)&&TMC260_DRVCTRL_SDOFF_PHB_DIR_MASK;
    regval |= (ph_b_cur << TMC260_DRVCTRL_SDOFF_PHB_CUR_SHIFT)&&TMC260_DRVCTRL_SDOFF_PHB_CUR_MASK;
 
    /** @todo Call the spi send register value function here once it is set up! */
-
+   retval = TMC260_spi_write_datagram(regval);
 
    /** @todo Should only set this variable if the SPI register write was a
     *        success.  Unfortunately, I don't think the TMC260 allows you to
@@ -401,5 +423,180 @@ uint8_t TMC260_send_drvctrl_sdoff(uint8_t ph_a_dir, uint8_t ph_a_cur, uint8_t ph
 
    return TMC260_SUCCESS;
 
+}
+
+/**
+ * @fn uint8_t TMC260_send_drvctrl_sdon(uint8_t intpol, uint8_t dedge, microstep_config mres)
+ * @brief Packs outgoing data and writes drvctrl reg when using step/dir mode.
+ *
+ * @param uint8_t intpol -> enable(1)/disable(0) step pulse interpolation
+ * @param uint8_t dedge  -> 0 == Step on rising edges, 1 == Step on both edges
+ * @param microstep_config mres -> microstep resolution
+ * @return uint8_t TMC260 return status.
+ */
+uint8_t TMC260_send_drvctrl_sdon(uint8_t intpol, uint8_t dedge, microstep_config mres)
+{
+   uint8_t retval;
+   uint32_t regval;
+
+   if((intpol > 1)||(dedge > 1))
+   {
+      return TMC260_ERROR_INVALID_INPUT;
+   }
+
+   regval = TMC260_DRVCTRL_SDON_INIT;
+   regval |= (intpol << TMC260_DRVCTRL_SDON_INTPOL_SHIFT)&&TMC260_DRVCTRL_SDON_INTPOL_MASK;
+   regval |= (dedge << TMC260_DRVCTRL_SDON_DEDGE_SHIFT)&&TMC260_DRVCTRL_SDON_DEDGE_MASK;
+   regval |= (mres << TMC260_DRVCTRL_SDON_MRES_SHIFT)&&TMC260_DRVCTRL_SDON_MRES_MASK;
+
+   /** @todo Call the spi send register value function here once it is set up! */
+   retval = TMC260_spi_write_datagram(regval);
+
+   /** @todo Should only set this variable if the SPI register write was a
+    *        success.  Unfortunately, I don't think the TMC260 allows you to
+    *        read the config registers back.  The status datagram returned
+    *        doesn't actually contain this info.
+    */
+   TMC260_DRVCTRL_regval = regval;
+
+   return TMC260_SUCCESS;
+
+}
+
+
+/**
+ * @fn uint8_t TMC260_send_chopconf(uint8_t tbl, uin8_t chm, uint8_t rndtf, uin8_t hdec, uin8_t hend, uint8_t hstrt, uint8_t toff)
+ * @brief Packs outgoing data and writes chopconf register.
+ *
+ * @param uint8_t tbl -> blanking time
+ * @param uint8_t chm -> chopper mode: 1=constant toff, 0=spreadCycle
+ * @param uint8_t rndtf -> random toff time enable (1) or disable (0)
+ * @param uint8_t hdec -> hysteresis decrement interval or fast decay mode
+ * @param uint8_t hend -> hysteresis end value or sine wave offset
+ * @param uint8_t hstrt -> hysteresis start value or fast decay time setting
+ * @param uint8_t toff -> duration of slow decay phase (Nclk = 12*(32*toff))
+ * @return uint8_t TMC260 return status.
+ */
+uint8_t TMC260_send_chopconf(uint8_t tbl, uint8_t chm, uint8_t rndtf, uint8_t hdec, uint8_t hend, uint8_t hstrt, uint8_t toff)
+{
+   uint8_t retval;
+   uint32_t regval;
+
+   /** @todo Should we check the input parameters??? */
+
+   regval = TMC260_CHOPCONF_INIT;
+   regval |= (tbl << TMC260_CHOPCONF_TBL_SHIFT)&&TMC260_CHOPCONF_TBL_MASK;
+   regval |= (chm << TMC260_CHOPCONF_CHM_SHIFT)&&TMC260_CHOPCONF_CHM_MASK;
+   regval |= (rndtf << TMC260_CHOPCONF_RNDTF_SHIFT)&&TMC260_CHOPCONF_RNDTF_MASK;
+   regval |= (hdec << TMC260_CHOPCONF_HDEC_SHIFT)&&TMC260_CHOPCONF_HDEC_MASK;
+   regval |= (hend << TMC260_CHOPCONF_HEND_SHIFT)&&TMC260_CHOPCONF_HEND_MASK;
+   regval |= (hstrt << TMC260_CHOPCONF_HSTRT_SHIFT)&&TMC260_CHOPCONF_HSTRT_MASK;
+   regval |= (toff << TMC260_CHOPCONF_TOFF_SHIFT)&&TMC260_CHOPCONF_TOFF_MASK;
+
+   retval = TMC260_spi_write_datagram(regval);
+
+   TMC260_CHOPCONF_regval = regval;
+
+   return TMC260_SUCCESS;
+}
+
+/**
+ * @fn uint8_t TMC260_send_smarten(uint8_t seimin, uint8_t sedn, uint8_t semax, uint8_t seup, uint8_t semin)
+ * @brief Packs outgoing data and writes smarten register.
+ *
+ * @param uint8_t seimin -> minimum coolStep current
+ * @param uint8_t sedn -> current decrement speed
+ * @param uint8_t semax -> upper coolStep threshold
+ * @param uint8_t seup -> current increment size
+ * @param uint8_t semin -> lower coolStep threshold
+ * @return uint8_t TMC260 return status.
+ */
+uint8_t TMC260_send_smarten(uint8_t seimin, uint8_t sedn, uint8_t semax, uint8_t seup, uint8_t semin)
+{
+   uint8_t retval;
+   uint32_t regval;
+
+   regval = TMC260_SMARTEN_INIT;
+   regval |= (seimin << TMC260_SMARTEN_SEIMIN_SHIFT)&&TMC260_SMARTEN_SEIMIN_MASK;
+   regval |= (sedn << TMC260_SMARTEN_SEDN_SHIFT)&&TMC260_SMARTEN_SEDN_MASK;
+   regval |= (semax << TMC260_SMARTEN_SEMAX_SHIFT)&&TMC260_SMARTEN_SEMAX_MASK;
+   regval |= (seup << TMC260_SMARTEN_SEUP_SHIFT)&&TMC260_SMARTEN_SEUP_MASK;
+   regval |= (semin << TMC260_SMARTEN_SEMIN_SHIFT)&&TMC260_SMARTEN_SEMIN_MASK;
+
+   retval = TMC260_spi_write_datagram(regval);
+
+   TMC260_SMARTEN_regval = regval;
+
+   return TMC260_SUCCESS;
+}
+
+
+/**
+ * @fn uint8_t TMC260_send_sgcsconf(uint8_t sfilt, uint8_t sgt, uint8_t cs)
+ * @brief Packs outgoing data and writes sgcs register.
+ *
+ * @param uint8_t sfilt -> stallGuard2 filter enable, 0=none, 1=4 full steps
+ * @param uint8_t sgt -> stallGuard2 threshold
+ * @param uint8_t cs -> current scale
+ * @return uint8_t TMC260 return status.
+ */
+uint8_t TMC260_send_sgcsconf(uint8_t sfilt, uint8_t sgt, uint8_t cs)
+{
+   uint8_t retval;
+   uint32_t regval;
+
+   regval = TMC260_SGCSCONF_INIT;
+   regval |= (sfilt << TMC260_SGCSCONF_SFILT_SHIFT)&&TMC260_SGCSCONF_SFILT_MASK;
+   regval |= (sgt << TMC260_SGCSCONF_SGT_SHIFT)&&TMC260_SGCSCONF_SGT_MASK;
+   regval |= (cs << TMC260_SGCSCONF_CS_SHIFT)&&TMC260_SGCSCONF_CS_MASK;
+
+   retval = TMC260_spi_write_datagram(regval);
+
+   TMC260_SGCSCONF_regval = regval;
+
+   return TMC260_SUCCESS;
+}
+
+
+/**
+ * @fn uint8_t TMC260_send_drvconf(uint8_t tst, uint8_t slph, uint8_t slpl, uint8_t diss2g, uint8_t ts2g, uint8_t sdoff, uint8_t vsense, uint8_t rdsel)
+ * @brief Packs outgoing data and writes drvconf register.
+ *
+ * @param uint8_t tst -> reserved test mode
+ * @param uint8_t slph -> slope control high side
+ * @param uint8_t slpl -> slope control low side
+ * @param uint8_t diss2g -> 0=short to ground protection enabled,
+ *                          1=short to ground protection disabled
+ * @param uint8_t ts2g -> short to ground protection timer
+ * @param uint8_t sdoff -> 0=enable step/dir interface
+ *                         1=disable step/dir interface
+ * @param uint8_t vsense -> sense resistor voltage-biased current scaling
+ * @param uint8_t rdsel -> select value for status output
+ *                         0x00 - microstep position readout
+ *                         0x01 - stallGuard2 level readout
+ *                         0x02 - stallGuard2 and current level redout
+ *                         0x03 - INVALID
+ * @return uint8_t TMC260 return status.
+ */
+uint8_t TMC260_send_drvconf(uint8_t tst, uint8_t slph, uint8_t slpl, uint8_t diss2g, uint8_t ts2g, uint8_t sdoff, uint8_t vsense, uint8_t rdsel)
+{
+   uint8_t retval;
+   uint32_t regval;
+
+   regval = TMC260_DRVCONF_INIT;
+   regval |= (tst << TMC260_DRVCONF_TST_SHIFT)&&TMC260_DRVCONF_TST_MASK;
+   regval |= (slph << TMC260_DRVCONF_SLPH_SHIFT)&&TMC260_DRVCONF_SLPH_MASK;
+   regval |= (slpl << TMC260_DRVCONF_SLPL_SHIFT)&&TMC260_DRVCONF_SLPL_MASK;
+   regval |= (diss2g << TMC260_DRVCONF_DISS2G_SHIFT)&&TMC260_DRVCONF_DISS2G_MASK;
+   regval |= (ts2g << TMC260_DRVCONF_TS2G_SHIFT)&&TMC260_DRVCONF_TS2G_MASK;
+   regval |= (sdoff << TMC260_DRVCONF_SDOFF_SHIFT)&&TMC260_DRVCONF_SDOFF_MASK;
+   regval |= (vsense << TMC260_DRVCONF_VSENSE_SHIFT)&&TMC260_DRVCONF_VSENSE_MASK;
+   regval |= (rdsel << TMC260_DRVCONF_RDSEL_SHIFT)&&TMC260_DRVCONF_RDSEL_MASK;
+
+   retval = TMC260_spi_write_datagram(regval);
+
+   TMC260_DRVCONF_regval = regval;
+
+   return TMC260_SUCCESS;
 }
 
