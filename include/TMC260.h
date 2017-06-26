@@ -143,10 +143,6 @@ typedef struct {
    uint8_t SG:1;
 } tmc260_status_struct;
 
-typedef struct {
-
-} tmc260_config;
-
 
 /**
  *
