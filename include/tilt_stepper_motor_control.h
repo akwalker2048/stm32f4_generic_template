@@ -17,6 +17,9 @@
 typedef enum {TILT_STEPPER_INITIALIZE,
               TILT_STEPPER_HOME,
               TILT_STEPPER_TILT_TABLE,
+              TILT_STEPPER_TEST_CW,
+              TILT_STEPPER_TEST_CCW,
+              TILT_STEPPER_TEST_DELAY,
               TILT_STEPPER_ERROR} tilt_stepper_states;
 
 

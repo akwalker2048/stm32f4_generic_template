@@ -121,6 +121,35 @@ typedef enum {MICROSTEP_CONFIG_256 = 0,
 #define TMC260_SGCSCONF_CS_SHIFT    0
 #define TMC260_SGCSCONF_CS_MASK     0x0000001F
 
+/* Read Response / Status Shifts and Masks */
+/* For TMC260_STATUS_POSITION */
+#define TMC260_STATUS_MSTEP_SHIFT  10
+#define TMC260_STATUS_MSTEP_MASK   0x000FFC00
+/* For TMC260_STATUS_STALLGUARD */
+#define TMC260_STATUS_STALLGUARD_SHIFT  10
+#define TMC260_STATUS_STALLGUARD_MASK   0x000FFC00
+/* For TMC260_STATUS_CURRENT */
+#define TMC260_STATUS_CUR_SG_SHIFT  15
+#define TMC260_STATUS_CUR_SG_MASK   0x000F8000
+#define TMC260_STATUS_CUR_SE_SHIFT  10
+#define TMC260_STATUS_CUR_SE_MASK   0x00007C00
+/* For All TMC_260_STATUS_* */
+#define TMC260_STATUS_STST_SHIFT  7
+#define TMC260_STATUS_STST_MASK   0x00000080
+#define TMC260_STATUS_OLB_SHIFT   6
+#define TMC260_STATUS_OLB_MASK    0x00000040
+#define TMC260_STATUS_OLA_SHIFT   5
+#define TMC260_STATUS_OLA_MASK    0x00000020
+#define TMC260_STATUS_S2GB_SHIFT  4
+#define TMC260_STATUS_S2GB_MASK   0x00000010
+#define TMC260_STATUS_S2GA_SHIFT  3
+#define TMC260_STATUS_S2GA_MASK   0x00000008
+#define TMC260_STATUS_OTPW_SHIFT  2
+#define TMC260_STATUS_OTPW_MASK   0x00000004
+#define TMC260_STATUS_OT_SHIFT    1
+#define TMC260_STATUS_OT_MASK     0x00000002
+#define TMC260_STATUS_SG_SHIFT    0
+#define TMC260_STATUS_SG_MASK     0x00000001
 
 typedef enum {TMC260_STATUS_POSITION = 0,
               TMC260_STATUS_STALLGUARD,
@@ -155,6 +184,82 @@ typedef struct {
  *
  */
 void TMC260_initialize(void);
+
+/**
+ *
+ * @fn void TMC260_enable(void)
+ * @brief Enables the driver output.
+ * @param None
+ * @return None
+ *
+ */
+void TMC260_enable(void);
+
+/**
+ *
+ * @fn void TMC260_disable(void)
+ * @brief Disables the driver output.
+ * @param None
+ * @return None
+ *
+ */
+void TMC260_disable(void);
+
+/**
+ *
+ * @fn void TMC260_dir_CW(void)
+ * @brief Sets the state of the dir pin for CW shaft rotation.
+ * @param None
+ * @return None
+ *
+ */
+void TMC260_dir_CW(void);
+
+/**
+ *
+ * @fn void TMC260_dir_CCW(void)
+ * @brief Sets the state of the dir pin for CCW shaft rotation.
+ * @param None
+ * @return None
+ *
+ */
+void TMC260_dir_CCW(void);
+
+/**
+ *
+ * @fn void TMC260_step(void)
+ * @brief Take a step in the current direction.
+ * @param None
+ * @return None
+ *
+ * The motor will take a step at it's current microstep setting.  So, if the
+ * driver is configured for 1/128 microsteps.  It will turn 1/128'th of a full
+ * step.
+ *
+ */
+void TMC260_step(void);
+
+/**
+ *
+ * @fn void TMC260_status(void)
+ * @brief Report the status of the driver.
+ * @param tmc260_status_struct *status -> filled with all current status info
+ * @param uint8_t send_packet -> 0=does nothing, !0=sends GenericPacket
+ * @return None
+ *
+ * The returned status will be different based on the RSEL bits.
+ *
+ */
+void TMC260_status(tmc260_status_struct *status, uint8_t send_packet);
+
+
+/**
+ * @todo Add functions to set TMC260 registers from outside the hardware
+ *       driver.
+ *
+ *       Add functions to report the current register values to give visibility
+ *       outside the driver.
+ */
 
 
 #endif

@@ -28,8 +28,9 @@
 #include "full_duplex_usart_dma.h"
 #include "rx_packet_handler.h"
 
-#include "tilt_motor_control.h"
-#include "lepton_functions.h"
+#include "tilt_stepper_motor_control.h"
+/* #include "tilt_motor_control.h" */
+/* #include "lepton_functions.h" */
 
 #include "quad_encoder.h"
 
@@ -93,7 +94,7 @@ int main(void)
    full_duplex_usart_dma_init(rx_packet_handler_ptr);
 
    /* init_usart_three(); */
-   pushbutton_init();
+   /* pushbutton_init(); */
 
    /* init_spi(); */
    /* init_i2c(); */
@@ -103,9 +104,10 @@ int main(void)
    analog_input_init();
 
    /* Cannot RS485 and Tilt!!!! Pin A2 */
-   rs485_sensor_bus_init_slave();
-   rs485_sensor_bus_init_master();
+   /* rs485_sensor_bus_init_slave(); */
+   /* rs485_sensor_bus_init_master(); */
 
+   tilt_stepper_motor_init();
 
    /* Cannot RS485 and Tilt!!!! Pin A2 */
    /* tilt_motor_init(); */
@@ -137,8 +139,8 @@ int main(void)
 
 
 
-      rs485_master_spin();
-      rs485_slave_spin();
+      /* rs485_master_spin(); */
+      /* rs485_slave_spin(); */
       full_duplex_usart_dma_spin();
 
       debug_output_toggle(DEBUG_LED_GREEN);

@@ -45,7 +45,9 @@ void TMC260_initialize(void)
 
    TMC260_init_gpio();
    TMC260_init_spi();
+   GPIO_ResetBits(GPIOC, GPIO_Pin_13);
    TMC260_init_config();
+   GPIO_SetBits(GPIOC, GPIO_Pin_13);
    TMC260_initialized = 1;
 
 }
@@ -125,8 +127,11 @@ void EXTI2_IRQHandler(void)
 {
    if(EXTI_GetITStatus(EXTI_Line2) != RESET)
    {
-      /** @todo Need to actually implement stall guard functionality here. */
-      debug_output_toggle(DEBUG_LED_RED);
+      /**
+       * @todo Need to actually implement stall guard functionality here.  Maybe
+       *       we should just kill the enable pin?
+       */
+      /* debug_output_toggle(DEBUG_LED_RED); */
 
       EXTI_ClearITPendingBit(EXTI_Line2);
    }
@@ -161,9 +166,9 @@ void TMC260_init_spi(void)
    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 
    /* Connect SPI pins to AF5 */
-   GPIO_PinAFConfig(GPIOA, GPIO_PinSource5, GPIO_AF_SPI3);
-   GPIO_PinAFConfig(GPIOA, GPIO_PinSource6, GPIO_AF_SPI3);
-   GPIO_PinAFConfig(GPIOA, GPIO_PinSource7, GPIO_AF_SPI3);
+   GPIO_PinAFConfig(GPIOA, GPIO_PinSource5, GPIO_AF_SPI1);
+   GPIO_PinAFConfig(GPIOA, GPIO_PinSource6, GPIO_AF_SPI1);
+   GPIO_PinAFConfig(GPIOA, GPIO_PinSource7, GPIO_AF_SPI1);
 
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
@@ -192,7 +197,7 @@ void TMC260_init_spi(void)
    SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;
    SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-   SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_32;
+   SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_16;
    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
    SPI_InitStructure.SPI_CRCPolynomial = 7;
    SPI_Init(SPI1, &SPI_InitStructure);
@@ -289,10 +294,14 @@ uint8_t TMC260_spi_write_datagram(uint32_t datagram)
    uint32_t sdatagram;
    uint8_t byte1, byte2, byte3;
 
+   /* GPIO_ResetBits(GPIOC, GPIO_Pin_13); */
+
    sdatagram = (datagram<<12);
-   byte1 = (sdatagram>>16)&0xFF;
-   byte2 = (sdatagram>>8)&0xFF;
-   byte3 = sdatagram&0xFF;
+   byte1 = (sdatagram>>24)&0xFF;
+   byte2 = (sdatagram>>16)&0xFF;
+   byte3 = (sdatagram>>8)&0xFF;
+
+
 
    /** @todo Is there any way to really check the retval here?  Not sure it
     *        really matters.  I think we'd want to write all the bytes anyway.
@@ -300,6 +309,12 @@ uint8_t TMC260_spi_write_datagram(uint32_t datagram)
    retval = TMC260_spi_write_byte(byte1);
    retval = TMC260_spi_write_byte(byte2);
    retval = TMC260_spi_write_byte(byte3);
+
+   /* retval = TMC260_spi_write_byte(0xFF); */
+   /* retval = TMC260_spi_write_byte(0x00); */
+   /* retval = TMC260_spi_write_byte(0x55); */
+
+   /* GPIO_SetBits(GPIOC, GPIO_Pin_13); */
 
    return TMC260_SUCCESS;
 }
@@ -320,7 +335,43 @@ uint8_t TMC260_spi_read_status(tmc260_status_types status_type, tmc260_status_st
     */
    retval = TMC260_spi_read_write_datagram(TMC260_DRVCONF_regval, &rd);
    /* Lastly...parse the return data into the status struct. */
+   status_struct->status_type = status_type;
+   status_struct->position = 0;
+   status_struct->stall_guard = 0;
+   status_struct->current = 0;
 
+   status_struct->STST = (rd & TMC260_STATUS_STST_MASK)>>TMC260_STATUS_STST_SHIFT;
+   status_struct->OLB  = (rd & TMC260_STATUS_OLB_MASK)>>TMC260_STATUS_OLB_SHIFT;
+   status_struct->OLA  = (rd & TMC260_STATUS_OLA_MASK)>>TMC260_STATUS_OLA_SHIFT;
+   status_struct->S2GB = (rd & TMC260_STATUS_S2GB_MASK)>>TMC260_STATUS_S2GB_SHIFT;
+   status_struct->S2GA = (rd & TMC260_STATUS_S2GA_MASK)>>TMC260_STATUS_S2GA_SHIFT;
+   status_struct->OTPW = (rd & TMC260_STATUS_OTPW_MASK)>>TMC260_STATUS_OTPW_SHIFT;
+   status_struct->OT   = (rd & TMC260_STATUS_OT_MASK)>>TMC260_STATUS_OT_SHIFT;
+   status_struct->SG   = (rd & TMC260_STATUS_SG_MASK)>>TMC260_STATUS_SG_SHIFT;
+
+   switch(status_type)
+   {
+      case TMC260_STATUS_POSITION:
+         status_struct->position = (rd & TMC260_STATUS_MSTEP_MASK)>>TMC260_STATUS_MSTEP_SHIFT;
+         status_struct->stall_guard = 0;
+         status_struct->current = 0;
+         break;
+      case TMC260_STATUS_STALLGUARD:
+         status_struct->position = 0;
+         status_struct->stall_guard = (rd & TMC260_STATUS_STALLGUARD_MASK)>>TMC260_STATUS_STALLGUARD_SHIFT;
+         status_struct->current = 0;
+         break;
+      case TMC260_STATUS_CURRENT:
+         status_struct->position = 0;
+         status_struct->stall_guard = (rd & TMC260_STATUS_CUR_SG_MASK)>>TMC260_STATUS_CUR_SG_SHIFT;
+         status_struct->current = (rd & TMC260_STATUS_CUR_SE_MASK)>>TMC260_STATUS_CUR_SE_SHIFT;
+         break;
+      default:
+         status_struct->position = 0;
+         status_struct->stall_guard = 0;
+         status_struct->current = 0;
+         break;
+   }
 
    return TMC260_SUCCESS;
 }
@@ -342,6 +393,8 @@ uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_d
    uint8_t byte1, byte2, byte3;
    uint8_t rb1, rb2, rb3;
 
+   /* GPIO_ResetBits(GPIOC, GPIO_Pin_13); */
+
    sdatagram = (write_datagram<<12);
    byte1 = (sdatagram>>16) & 0xFF;
    byte2 = (sdatagram>>8)  & 0xFF;
@@ -358,6 +411,8 @@ uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_d
    *read_datagram |= (rb1<<16) & 0x00FF0000;
    *read_datagram |= (rb2<<8)  & 0x0000FF00;
    *read_datagram |= rb3       & 0x000000FF;
+
+   /* GPIO_SetBits(GPIOC, GPIO_Pin_13); */
 
    return TMC260_SUCCESS;
 }
@@ -376,16 +431,21 @@ uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_d
  */
 void TMC260_init_config(void)
 {
-   /* No step interpoloation, step on both edges, full stepping... */
-   TMC260_send_drvctrl_sdon(0, 1, MCIROSTEP_CONFIG_1);
+
+   debug_output_set(DEBUG_LED_RED);
+
+   /* /\* No step interpoloation, step on both edges, full stepping... *\/ */
+   /* TMC260_send_drvctrl_sdon(0, 1, MCIROSTEP_CONFIG_1); */
    /* */
    TMC260_send_chopconf(0x02, 0x01, 0x00, 0x00, 0x10, 0x05, 0x07);
-   /* */
-   TMC260_send_smarten(0x01, 0x00, 0x02, 0x00, 0x02);
-   /* */
-   TMC260_send_sgcsconf(0x01, 0x00, 0x1F);
-   /* */
-   TMC260_send_drvconf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+   /* /\* *\/ */
+   /* TMC260_send_smarten(0x01, 0x00, 0x02, 0x00, 0x02); */
+   /* /\* *\/ */
+   /* TMC260_send_sgcsconf(0x01, 0x00, 0x1F); */
+   /* /\* *\/ */
+   /* TMC260_send_drvconf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00); */
+
+   debug_output_clear(DEBUG_LED_RED);
 }
 
 /**
@@ -492,6 +552,9 @@ uint8_t TMC260_send_chopconf(uint8_t tbl, uint8_t chm, uint8_t rndtf, uint8_t hd
    regval |= (hend << TMC260_CHOPCONF_HEND_SHIFT)&&TMC260_CHOPCONF_HEND_MASK;
    regval |= (hstrt << TMC260_CHOPCONF_HSTRT_SHIFT)&&TMC260_CHOPCONF_HSTRT_MASK;
    regval |= (toff << TMC260_CHOPCONF_TOFF_SHIFT)&&TMC260_CHOPCONF_TOFF_MASK;
+
+   /* TEMP */
+   regval = 0x94557;
 
    retval = TMC260_spi_write_datagram(regval);
 
@@ -600,3 +663,60 @@ uint8_t TMC260_send_drvconf(uint8_t tst, uint8_t slph, uint8_t slpl, uint8_t dis
    return TMC260_SUCCESS;
 }
 
+
+/* Public Interface Functions - Doxygen Documentation in Header */
+void TMC260_enable(void)
+{
+   GPIO_ResetBits(GPIOA, GPIO_Pin_0);
+}
+
+void TMC260_disable(void)
+{
+   GPIO_SetBits(GPIOA, GPIO_Pin_0);
+}
+
+void TMC260_dir_CW(void)
+{
+   GPIO_ResetBits(GPIOA, GPIO_Pin_1);
+}
+
+void TMC260_dir_CCW(void)
+{
+   GPIO_SetBits(GPIOA, GPIO_Pin_1);
+}
+
+
+void TMC260_step(void)
+{
+   /**
+    * @todo We are curerntly assuming that the DEDGE bit is set to 1  such that
+    *       steps are taken on both rising and falling edges.  We would need to
+    *       modify this function if we wish to behave properly for only rising
+    *       edge active.
+    *
+    */
+   if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_2) == Bit_SET)
+   {
+      GPIO_ResetBits(GPIOA, GPIO_Pin_2);
+   }
+   else
+   {
+      GPIO_SetBits(GPIOA, GPIO_Pin_2);
+   }
+}
+
+void TMC260_status(tmc260_status_struct *status, uint8_t send_packet)
+{
+   TMC260_spi_read_status(TMC260_STATUS_POSITION, status);
+   /* TMC260_spi_read_status(TMC260_STATUS_STALLGUARD, status); */
+   /* TMC260_spi_read_status(TMC260_STATUS_CURRENT, status); */
+
+   if(send_packet)
+   {
+      /**
+       * @todo Create MOTOR_TMC260_RESP_STATUS GenericPacket and ship it!
+       */
+
+   }
+
+}

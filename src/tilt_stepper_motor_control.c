@@ -10,6 +10,8 @@
 #include "stm32f4xx_conf.h"
 #include "tilt_stepper_motor_control.h"
 
+#include "debug.h"
+
 #include "gp_proj_motor.h"
 
 #include "TMC260.h"
@@ -145,8 +147,10 @@ void tilt_stepper_motor_init_step_timer(void)
  */
 void TIM5_IRQHandler(void)
 {
-   if(TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
+   if(TIM_GetITStatus(TIM5, TIM_IT_Update) != RESET)
    {
+
+      debug_output_toggle(DEBUG_LED_GREEN);
 
       /* if(rotating)
        *   {step through the table...flip dir at end...keep stepping until state changes...}
@@ -156,7 +160,12 @@ void TIM5_IRQHandler(void)
        *   {do nothing}
        */
 
-      TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+      if((ts_state == TILT_STEPPER_TEST_CW)||(ts_state == TILT_STEPPER_TEST_CCW))
+      {
+         TMC260_step();
+      }
+
+      TIM_ClearITPendingBit(TIM5, TIM_IT_Update);
    }
 }
 
@@ -170,20 +179,57 @@ void TIM5_IRQHandler(void)
  */
 void TIM1_TRG_COM_TIM11_IRQHandler(void)
 {
-   if(TIM_GetITStatus(TIM1, TIM_IT_Update) != RESET)
+   if(TIM_GetITStatus(TIM11, TIM_IT_Update) != RESET)
    {
+      debug_output_toggle(DEBUG_LED_BLUE);
 
       ts_state_timer++;
 
       switch(ts_state)
       {
          case TILT_STEPPER_INITIALIZE:
+            /* debug_output_set(DEBUG_LED_RED); */
             TMC260_initialize();
-            tilt_stepper_motor_state_change(TILT_STEPPER_TILT_TABLE, 1);
+            /* tilt_stepper_motor_state_change(TILT_STEPPER_TILT_TABLE, 1); */
+            tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CCW, 1);
             break;
          case TILT_STEPPER_HOME:
             break;
          case TILT_STEPPER_TILT_TABLE:
+            break;
+         case TILT_STEPPER_TEST_CW:
+            if(ts_state_timer == 1)
+            {
+               /* debug_output_clear(DEBUG_LED_RED); */
+               TMC260_dir_CW();
+               TMC260_enable();
+            }
+
+            if(ts_state_timer > 1000)
+            {
+               TMC260_disable();
+               tilt_stepper_motor_state_change(TILT_STEPPER_TEST_DELAY, 1);
+            }
+            break;
+         case TILT_STEPPER_TEST_CCW:
+            if(ts_state_timer == 1)
+            {
+               TMC260_dir_CCW();
+               TMC260_enable();
+            }
+
+            if(ts_state_timer > 1000)
+            {
+               TMC260_disable();
+               tilt_stepper_motor_state_change(TILT_STEPPER_TEST_DELAY, 1);
+            }
+
+            break;
+         case TILT_STEPPER_TEST_DELAY:
+            if(ts_state_timer > 1000)
+            {
+               tilt_stepper_motor_state_change(TILT_STEPPER_INITIALIZE, 1);
+            }
             break;
          case TILT_STEPPER_ERROR:
             break;
@@ -191,7 +237,7 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
             break;
       }
 
-      TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
+      TIM_ClearITPendingBit(TIM11, TIM_IT_Update);
    }
 }
 
