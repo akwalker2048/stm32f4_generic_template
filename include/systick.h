@@ -37,4 +37,6 @@ void systick_init(void);
  */
 void systick_delay_ms(uint32_t delay_ms);
 
+void Delay(__IO uint32_t nCount);
+
 #endif

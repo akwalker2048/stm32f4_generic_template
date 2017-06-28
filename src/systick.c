@@ -9,6 +9,8 @@
  */
 #include "systick.h"
 
+#include "debug.h"
+
 uint8_t systick_initialized = 0;
 
 /* Free Running Coutner */
@@ -62,19 +64,7 @@ void SysTick_Handler(void)
       /** @todo Need to get the debug code set up and use that to toggle the
        *  heartbeat LED here.
        */
-      /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_GREEN) == Bit_SET) */
-      /* { */
-      /*    GPIO_ResetBits(GPIOD, LED_PIN_GREEN); */
-      /*    /\* GPIO_SetBits(GPIOD, LED_PIN_BLUE); *\/ */
-
-      /* } */
-      /* else */
-      /* { */
-      /*    GPIO_SetBits(GPIOD, LED_PIN_GREEN); */
-      /*    /\* GPIO_ResetBits(GPIOD, LED_PIN_BLUE); *\/ */
-
-      /* } */
-
+      debug_output_toggle(DEBUG_LED_GREEN);
 
    }
 
@@ -90,4 +80,19 @@ void systick_delay_ms(uint32_t delay_ms)
     */
    ms_counter_r = 0;
    while(ms_counter_r < delay_ms);
+}
+
+
+/**
+  * @brief  Inserts a delay time.
+  * @param  nCount: specifies the delay time length.
+  * @retval None
+  */
+void Delay(__IO uint32_t nCount)
+{
+  /* Decrement nCount value */
+  while (nCount != 0)
+  {
+    nCount--;
+  }
 }

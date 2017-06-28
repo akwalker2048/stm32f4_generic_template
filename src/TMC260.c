@@ -12,6 +12,13 @@
 #include "TMC260.h"
 #include "debug.h"
 
+#include "systick.h"
+
+#include "full_duplex_usart_dma.h"
+#include "generic_packet.h"
+#include "gp_proj_universal.h"
+#include "gp_proj_motor.h"
+
 uint8_t TMC260_initialized = 0;
 /* uint16_t TIM1_Period = 0; */
 
@@ -45,9 +52,7 @@ void TMC260_initialize(void)
 
    TMC260_init_gpio();
    TMC260_init_spi();
-   GPIO_ResetBits(GPIOC, GPIO_Pin_13);
    TMC260_init_config();
-   GPIO_SetBits(GPIOC, GPIO_Pin_13);
    TMC260_initialized = 1;
 
 }
@@ -194,10 +199,10 @@ void TMC260_init_spi(void)
    SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
    SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
    SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
-   SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;
+   SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
    SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-   SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_16;
+   SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_256;
    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
    SPI_InitStructure.SPI_CRCPolynomial = 7;
    SPI_Init(SPI1, &SPI_InitStructure);
@@ -294,14 +299,14 @@ uint8_t TMC260_spi_write_datagram(uint32_t datagram)
    uint32_t sdatagram;
    uint8_t byte1, byte2, byte3;
 
-   /* GPIO_ResetBits(GPIOC, GPIO_Pin_13); */
-
    sdatagram = (datagram<<12);
    byte1 = (sdatagram>>24)&0xFF;
    byte2 = (sdatagram>>16)&0xFF;
    byte3 = (sdatagram>>8)&0xFF;
 
 
+
+   GPIO_ResetBits(GPIOC, GPIO_Pin_13);
 
    /** @todo Is there any way to really check the retval here?  Not sure it
     *        really matters.  I think we'd want to write all the bytes anyway.
@@ -314,7 +319,12 @@ uint8_t TMC260_spi_write_datagram(uint32_t datagram)
    /* retval = TMC260_spi_write_byte(0x00); */
    /* retval = TMC260_spi_write_byte(0x55); */
 
-   /* GPIO_SetBits(GPIOC, GPIO_Pin_13); */
+
+   while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_BSY) == SET);
+   GPIO_SetBits(GPIOC, GPIO_Pin_13);
+
+   /* TEMP */
+   Delay(TMC260_SPI_DELAY_COUNT);
 
    return TMC260_SUCCESS;
 }
@@ -339,6 +349,7 @@ uint8_t TMC260_spi_read_status(tmc260_status_types status_type, tmc260_status_st
    status_struct->position = 0;
    status_struct->stall_guard = 0;
    status_struct->current = 0;
+   status_struct->status_byte = (uint8_t)(rd&0xff);
 
    status_struct->STST = (rd & TMC260_STATUS_STST_MASK)>>TMC260_STATUS_STST_SHIFT;
    status_struct->OLB  = (rd & TMC260_STATUS_OLB_MASK)>>TMC260_STATUS_OLB_SHIFT;
@@ -389,16 +400,20 @@ uint8_t TMC260_spi_read_status(tmc260_status_types status_type, tmc260_status_st
 uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_datagram)
 {
    uint8_t retval;
-   uint32_t sdatagram;
+   uint32_t sdatagram, t1, t2, t3;
    uint8_t byte1, byte2, byte3;
    uint8_t rb1, rb2, rb3;
 
-   /* GPIO_ResetBits(GPIOC, GPIO_Pin_13); */
+   GenericPacket packet1, packet2, packet3;
 
    sdatagram = (write_datagram<<12);
-   byte1 = (sdatagram>>16) & 0xFF;
-   byte2 = (sdatagram>>8)  & 0xFF;
-   byte3 = sdatagram       & 0xFF;
+   byte1 = (sdatagram>>24)&0xFF;
+   byte2 = (sdatagram>>16)&0xFF;
+   byte3 = (sdatagram>>8)&0xFF;
+
+
+   GPIO_ResetBits(GPIOC, GPIO_Pin_13);
+
 
    /** @todo Is there any way to really check the retval here?  Not sure it
     *        really matters.  I think we'd want to write all the bytes anyway.
@@ -408,11 +423,29 @@ uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_d
    retval = TMC260_spi_write_read_byte(byte3, &rb3);
 
    *read_datagram = 0x00000000;
-   *read_datagram |= (rb1<<16) & 0x00FF0000;
-   *read_datagram |= (rb2<<8)  & 0x0000FF00;
-   *read_datagram |= rb3       & 0x000000FF;
+   t1 = rb1&0x000000FF;
+   t2 = rb2&0x000000FF;
+   t3 = rb3&0x000000FF;
+   *read_datagram |= (t1<<24) & 0xFF000000;
+   *read_datagram |= (t2<<16) & 0x00FF0000;
+   *read_datagram |= (t3<<8)  & 0x0000FF00;
+   *read_datagram = ((*read_datagram)>>12);
 
-   /* GPIO_SetBits(GPIOC, GPIO_Pin_13); */
+   create_universal_word(&packet1, *read_datagram);
+   full_duplex_usart_dma_add_to_queue(&packet1, NULL, 0);
+
+   /* create_universal_byte(&packet2, (uint32_t)rb2); */
+   /* full_duplex_usart_dma_add_to_queue(&packet2, NULL, 0); */
+
+   /* create_universal_byte(&packet3, (uint32_t)rb3); */
+   /* full_duplex_usart_dma_add_to_queue(&packet3, NULL, 0); */
+
+
+   while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_BSY) == SET);
+   GPIO_SetBits(GPIOC, GPIO_Pin_13);
+
+   /* TEMP */
+   Delay(TMC260_SPI_DELAY_COUNT);
 
    return TMC260_SUCCESS;
 }
@@ -434,16 +467,16 @@ void TMC260_init_config(void)
 
    debug_output_set(DEBUG_LED_RED);
 
-   /* /\* No step interpoloation, step on both edges, full stepping... *\/ */
-   /* TMC260_send_drvctrl_sdon(0, 1, MCIROSTEP_CONFIG_1); */
+   /* */
+   TMC260_send_drvconf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+   /* No step interpoloation, step on both edges, full stepping... */
+   TMC260_send_drvctrl_sdon(0, 1, MCIROSTEP_CONFIG_1);
    /* */
    TMC260_send_chopconf(0x02, 0x01, 0x00, 0x00, 0x10, 0x05, 0x07);
-   /* /\* *\/ */
-   /* TMC260_send_smarten(0x01, 0x00, 0x02, 0x00, 0x02); */
-   /* /\* *\/ */
-   /* TMC260_send_sgcsconf(0x01, 0x00, 0x1F); */
-   /* /\* *\/ */
-   /* TMC260_send_drvconf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00); */
+   /* */
+   TMC260_send_smarten(0x01, 0x00, 0x02, 0x00, 0x02);
+   /* */
+   TMC260_send_sgcsconf(0x01, 0x00, 0x1F);
 
    debug_output_clear(DEBUG_LED_RED);
 }
@@ -466,10 +499,10 @@ uint8_t TMC260_send_drvctrl_sdoff(uint8_t ph_a_dir, uint8_t ph_a_cur, uint8_t ph
    }
 
    regval = TMC260_DRVCTRL_SDOFF_INIT;
-   regval |= (ph_a_dir << TMC260_DRVCTRL_SDOFF_PHA_DIR_SHIFT)&&TMC260_DRVCTRL_SDOFF_PHA_DIR_MASK;
-   regval |= (ph_a_cur << TMC260_DRVCTRL_SDOFF_PHA_CUR_SHIFT)&&TMC260_DRVCTRL_SDOFF_PHA_CUR_MASK;
-   regval |= (ph_b_dir << TMC260_DRVCTRL_SDOFF_PHB_DIR_SHIFT)&&TMC260_DRVCTRL_SDOFF_PHB_DIR_MASK;
-   regval |= (ph_b_cur << TMC260_DRVCTRL_SDOFF_PHB_CUR_SHIFT)&&TMC260_DRVCTRL_SDOFF_PHB_CUR_MASK;
+   regval |= ((uint32_t)ph_a_dir << TMC260_DRVCTRL_SDOFF_PHA_DIR_SHIFT)&TMC260_DRVCTRL_SDOFF_PHA_DIR_MASK;
+   regval |= ((uint32_t)ph_a_cur << TMC260_DRVCTRL_SDOFF_PHA_CUR_SHIFT)&TMC260_DRVCTRL_SDOFF_PHA_CUR_MASK;
+   regval |= ((uint32_t)ph_b_dir << TMC260_DRVCTRL_SDOFF_PHB_DIR_SHIFT)&TMC260_DRVCTRL_SDOFF_PHB_DIR_MASK;
+   regval |= ((uint32_t)ph_b_cur << TMC260_DRVCTRL_SDOFF_PHB_CUR_SHIFT)&TMC260_DRVCTRL_SDOFF_PHB_CUR_MASK;
 
    /** @todo Call the spi send register value function here once it is set up! */
    retval = TMC260_spi_write_datagram(regval);
@@ -505,11 +538,13 @@ uint8_t TMC260_send_drvctrl_sdon(uint8_t intpol, uint8_t dedge, microstep_config
    }
 
    regval = TMC260_DRVCTRL_SDON_INIT;
-   regval |= (intpol << TMC260_DRVCTRL_SDON_INTPOL_SHIFT)&&TMC260_DRVCTRL_SDON_INTPOL_MASK;
-   regval |= (dedge << TMC260_DRVCTRL_SDON_DEDGE_SHIFT)&&TMC260_DRVCTRL_SDON_DEDGE_MASK;
-   regval |= (mres << TMC260_DRVCTRL_SDON_MRES_SHIFT)&&TMC260_DRVCTRL_SDON_MRES_MASK;
+   regval |= ((uint32_t)intpol << TMC260_DRVCTRL_SDON_INTPOL_SHIFT)&TMC260_DRVCTRL_SDON_INTPOL_MASK;
+   regval |= ((uint32_t)dedge << TMC260_DRVCTRL_SDON_DEDGE_SHIFT)&TMC260_DRVCTRL_SDON_DEDGE_MASK;
+   regval |= ((uint32_t)mres << TMC260_DRVCTRL_SDON_MRES_SHIFT)&TMC260_DRVCTRL_SDON_MRES_MASK;
 
    /** @todo Call the spi send register value function here once it is set up! */
+   /* regval = 0x110; */
+   /* regval = 0x00000100; */
    retval = TMC260_spi_write_datagram(regval);
 
    /** @todo Should only set this variable if the SPI register write was a
@@ -545,16 +580,17 @@ uint8_t TMC260_send_chopconf(uint8_t tbl, uint8_t chm, uint8_t rndtf, uint8_t hd
    /** @todo Should we check the input parameters??? */
 
    regval = TMC260_CHOPCONF_INIT;
-   regval |= (tbl << TMC260_CHOPCONF_TBL_SHIFT)&&TMC260_CHOPCONF_TBL_MASK;
-   regval |= (chm << TMC260_CHOPCONF_CHM_SHIFT)&&TMC260_CHOPCONF_CHM_MASK;
-   regval |= (rndtf << TMC260_CHOPCONF_RNDTF_SHIFT)&&TMC260_CHOPCONF_RNDTF_MASK;
-   regval |= (hdec << TMC260_CHOPCONF_HDEC_SHIFT)&&TMC260_CHOPCONF_HDEC_MASK;
-   regval |= (hend << TMC260_CHOPCONF_HEND_SHIFT)&&TMC260_CHOPCONF_HEND_MASK;
-   regval |= (hstrt << TMC260_CHOPCONF_HSTRT_SHIFT)&&TMC260_CHOPCONF_HSTRT_MASK;
-   regval |= (toff << TMC260_CHOPCONF_TOFF_SHIFT)&&TMC260_CHOPCONF_TOFF_MASK;
+   regval |= ((uint32_t)tbl << TMC260_CHOPCONF_TBL_SHIFT)&TMC260_CHOPCONF_TBL_MASK;
+   regval |= ((uint32_t)chm << TMC260_CHOPCONF_CHM_SHIFT)&TMC260_CHOPCONF_CHM_MASK;
+   regval |= ((uint32_t)rndtf << TMC260_CHOPCONF_RNDTF_SHIFT)&TMC260_CHOPCONF_RNDTF_MASK;
+   regval |= ((uint32_t)hdec << TMC260_CHOPCONF_HDEC_SHIFT)&TMC260_CHOPCONF_HDEC_MASK;
+   regval |= ((uint32_t)hend << TMC260_CHOPCONF_HEND_SHIFT)&TMC260_CHOPCONF_HEND_MASK;
+   regval |= ((uint32_t)hstrt << TMC260_CHOPCONF_HSTRT_SHIFT)&TMC260_CHOPCONF_HSTRT_MASK;
+   regval |= ((uint32_t)toff << TMC260_CHOPCONF_TOFF_SHIFT)&TMC260_CHOPCONF_TOFF_MASK;
 
    /* TEMP */
-   regval = 0x94557;
+   /* regval = 0x94557; */
+   /* regval = 0x901B4; */
 
    retval = TMC260_spi_write_datagram(regval);
 
@@ -580,11 +616,14 @@ uint8_t TMC260_send_smarten(uint8_t seimin, uint8_t sedn, uint8_t semax, uint8_t
    uint32_t regval;
 
    regval = TMC260_SMARTEN_INIT;
-   regval |= (seimin << TMC260_SMARTEN_SEIMIN_SHIFT)&&TMC260_SMARTEN_SEIMIN_MASK;
-   regval |= (sedn << TMC260_SMARTEN_SEDN_SHIFT)&&TMC260_SMARTEN_SEDN_MASK;
-   regval |= (semax << TMC260_SMARTEN_SEMAX_SHIFT)&&TMC260_SMARTEN_SEMAX_MASK;
-   regval |= (seup << TMC260_SMARTEN_SEUP_SHIFT)&&TMC260_SMARTEN_SEUP_MASK;
-   regval |= (semin << TMC260_SMARTEN_SEMIN_SHIFT)&&TMC260_SMARTEN_SEMIN_MASK;
+   regval |= ((uint32_t)seimin << TMC260_SMARTEN_SEIMIN_SHIFT)&TMC260_SMARTEN_SEIMIN_MASK;
+   regval |= ((uint32_t)sedn << TMC260_SMARTEN_SEDN_SHIFT)&TMC260_SMARTEN_SEDN_MASK;
+   regval |= ((uint32_t)semax << TMC260_SMARTEN_SEMAX_SHIFT)&TMC260_SMARTEN_SEMAX_MASK;
+   regval |= ((uint32_t)seup << TMC260_SMARTEN_SEUP_SHIFT)&TMC260_SMARTEN_SEUP_MASK;
+   regval |= ((uint32_t)semin << TMC260_SMARTEN_SEMIN_SHIFT)&TMC260_SMARTEN_SEMIN_MASK;
+
+   /* regval = 0xA8202; */
+   /* regval = 0xA8200; */
 
    retval = TMC260_spi_write_datagram(regval);
 
@@ -609,10 +648,12 @@ uint8_t TMC260_send_sgcsconf(uint8_t sfilt, uint8_t sgt, uint8_t cs)
    uint32_t regval;
 
    regval = TMC260_SGCSCONF_INIT;
-   regval |= (sfilt << TMC260_SGCSCONF_SFILT_SHIFT)&&TMC260_SGCSCONF_SFILT_MASK;
-   regval |= (sgt << TMC260_SGCSCONF_SGT_SHIFT)&&TMC260_SGCSCONF_SGT_MASK;
-   regval |= (cs << TMC260_SGCSCONF_CS_SHIFT)&&TMC260_SGCSCONF_CS_MASK;
+   regval |= ((uint32_t)sfilt << TMC260_SGCSCONF_SFILT_SHIFT)&TMC260_SGCSCONF_SFILT_MASK;
+   regval |= ((uint32_t)sgt << TMC260_SGCSCONF_SGT_SHIFT)&TMC260_SGCSCONF_SGT_MASK;
+   regval |= ((uint32_t)cs << TMC260_SGCSCONF_CS_SHIFT)&TMC260_SGCSCONF_CS_MASK;
 
+   /* regval = 0xD001F; */
+   /* regval = 0xD3F1F; */
    retval = TMC260_spi_write_datagram(regval);
 
    TMC260_SGCSCONF_regval = regval;
@@ -647,15 +688,18 @@ uint8_t TMC260_send_drvconf(uint8_t tst, uint8_t slph, uint8_t slpl, uint8_t dis
    uint32_t regval;
 
    regval = TMC260_DRVCONF_INIT;
-   regval |= (tst << TMC260_DRVCONF_TST_SHIFT)&&TMC260_DRVCONF_TST_MASK;
-   regval |= (slph << TMC260_DRVCONF_SLPH_SHIFT)&&TMC260_DRVCONF_SLPH_MASK;
-   regval |= (slpl << TMC260_DRVCONF_SLPL_SHIFT)&&TMC260_DRVCONF_SLPL_MASK;
-   regval |= (diss2g << TMC260_DRVCONF_DISS2G_SHIFT)&&TMC260_DRVCONF_DISS2G_MASK;
-   regval |= (ts2g << TMC260_DRVCONF_TS2G_SHIFT)&&TMC260_DRVCONF_TS2G_MASK;
-   regval |= (sdoff << TMC260_DRVCONF_SDOFF_SHIFT)&&TMC260_DRVCONF_SDOFF_MASK;
-   regval |= (vsense << TMC260_DRVCONF_VSENSE_SHIFT)&&TMC260_DRVCONF_VSENSE_MASK;
-   regval |= (rdsel << TMC260_DRVCONF_RDSEL_SHIFT)&&TMC260_DRVCONF_RDSEL_MASK;
+   regval |= ((uint32_t)tst << TMC260_DRVCONF_TST_SHIFT)&TMC260_DRVCONF_TST_MASK;
+   regval |= ((uint32_t)slph << TMC260_DRVCONF_SLPH_SHIFT)&TMC260_DRVCONF_SLPH_MASK;
+   regval |= ((uint32_t)slpl << TMC260_DRVCONF_SLPL_SHIFT)&TMC260_DRVCONF_SLPL_MASK;
+   regval |= ((uint32_t)diss2g << TMC260_DRVCONF_DISS2G_SHIFT)&TMC260_DRVCONF_DISS2G_MASK;
+   regval |= ((uint32_t)ts2g << TMC260_DRVCONF_TS2G_SHIFT)&TMC260_DRVCONF_TS2G_MASK;
+   regval |= ((uint32_t)sdoff << TMC260_DRVCONF_SDOFF_SHIFT)&TMC260_DRVCONF_SDOFF_MASK;
+   regval |= ((uint32_t)vsense << TMC260_DRVCONF_VSENSE_SHIFT)&TMC260_DRVCONF_VSENSE_MASK;
+   regval |= ((uint32_t)rdsel << TMC260_DRVCONF_RDSEL_SHIFT)&TMC260_DRVCONF_RDSEL_MASK;
 
+   /* regval = 0xE0000; */
+   /* regval = 0xEF010; */
+   /* regval = 0xEF000; */
    retval = TMC260_spi_write_datagram(regval);
 
    TMC260_DRVCONF_regval = regval;
@@ -707,6 +751,8 @@ void TMC260_step(void)
 
 void TMC260_status(tmc260_status_struct *status, uint8_t send_packet)
 {
+   GenericPacket packet;
+
    TMC260_spi_read_status(TMC260_STATUS_POSITION, status);
    /* TMC260_spi_read_status(TMC260_STATUS_STALLGUARD, status); */
    /* TMC260_spi_read_status(TMC260_STATUS_CURRENT, status); */
@@ -716,7 +762,8 @@ void TMC260_status(tmc260_status_struct *status, uint8_t send_packet)
       /**
        * @todo Create MOTOR_TMC260_RESP_STATUS GenericPacket and ship it!
        */
-
+      create_motor_tmc260_resp_status(&packet, status->position, status->stall_guard, status->current, status->status_byte);
+      full_duplex_usart_dma_add_to_queue(&packet, NULL, 0);
    }
 
 }

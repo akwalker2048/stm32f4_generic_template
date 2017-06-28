@@ -12,6 +12,9 @@
 
 #include "debug.h"
 
+#include "full_duplex_usart_dma.h"
+
+#include "generic_packet.h"
 #include "gp_proj_motor.h"
 
 #include "TMC260.h"
@@ -22,7 +25,14 @@
 uint32_t ts_state_timer = 0;
 tilt_stepper_states ts_state = TILT_STEPPER_INITIALIZE;
 
+tmc260_status_struct stat_struct;
+
+uint8_t last_dir = 0;
+
 volatile uint32_t tilt_index = 0;
+
+GenericPacket gp_pos_rad;
+float pos_rad = 0.0f;
 
 /* Private functions. */
 void tilt_stepper_motor_init_state_machine(void);
@@ -190,8 +200,18 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
          case TILT_STEPPER_INITIALIZE:
             /* debug_output_set(DEBUG_LED_RED); */
             TMC260_initialize();
-            /* tilt_stepper_motor_state_change(TILT_STEPPER_TILT_TABLE, 1); */
-            tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CCW, 1);
+
+            if(last_dir)
+            {
+               last_dir = 0;
+               tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CW, 1);
+            }
+            else
+            {
+               last_dir = 1;
+               tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CCW, 1);
+            }
+
             break;
          case TILT_STEPPER_HOME:
             break;
@@ -204,6 +224,17 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                TMC260_dir_CW();
                TMC260_enable();
             }
+
+            pos_rad += 0.005f;
+            if(pos_rad >= 3.14f)
+            {
+               pos_rad = 3.14f;
+            }
+            /**
+             * @todo Need to add the callback for the outgoing queue.
+             */
+            create_motor_resp_position(&gp_pos_rad, pos_rad);
+            full_duplex_usart_dma_add_to_queue(&gp_pos_rad, NULL, 0);
 
             if(ts_state_timer > 1000)
             {
@@ -218,6 +249,18 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                TMC260_enable();
             }
 
+            pos_rad -= 0.005f;
+            if(pos_rad < 0.0f)
+            {
+               pos_rad = 0.0f;
+            }
+
+            /**
+             * @todo Need to add the callback for the outgoing queue.
+             */
+            create_motor_resp_position(&gp_pos_rad, pos_rad);
+            full_duplex_usart_dma_add_to_queue(&gp_pos_rad, NULL, 0);
+
             if(ts_state_timer > 1000)
             {
                TMC260_disable();
@@ -226,6 +269,11 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
 
             break;
          case TILT_STEPPER_TEST_DELAY:
+            if(ts_state_timer == 1)
+            {
+               TMC260_status(&stat_struct, 1);
+            }
+
             if(ts_state_timer > 1000)
             {
                tilt_stepper_motor_state_change(TILT_STEPPER_INITIALIZE, 1);

@@ -31,6 +31,8 @@ typedef enum {MICROSTEP_CONFIG_256 = 0,
 #define TMC260_ERROR_INVALID_INPUT 1
 
 
+#define TMC260_SPI_DELAY_COUNT 0x000001FF
+
 /** @todo Keep in mind that all registers will need to be shifted left 12 bits
  *  and transferred starting with the highest byte to lowest byte.  This will
  *  result in 12 extra bits being sent (or 4...if we only send the first 3
