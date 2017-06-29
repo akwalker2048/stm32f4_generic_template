@@ -70,7 +70,7 @@ void tilt_stepper_motor_init_state_machine(void)
    RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM11, ENABLE);
 
    /* TIM11 on APB2 runs at SystemCoreClock. */
-   pscale = 1;
+   pscale = 2;
    TimerPeriod = (SystemCoreClock / (TILT_STEPPER_STATE_MACHINE_HZ * (pscale+1))) - 1;
 
    /* Time Base configuration */
@@ -80,7 +80,7 @@ void tilt_stepper_motor_init_state_machine(void)
    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
    TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
 
-   TIM_TimeBaseInit(TIM12, &TIM_TimeBaseStructure);
+   TIM_TimeBaseInit(TIM11, &TIM_TimeBaseStructure);
 
    /* Set up interrupt. */
    NVIC_InitStructure.NVIC_IRQChannel = TIM1_TRG_COM_TIM11_IRQn;
