@@ -1,5 +1,16 @@
+/**
+ * @file rx_packet_handler.c
+ * @author Andrew K. Walker
+ * @date 26 MAY 2017
+ * @brief Handles incoming GenericPackets.
+ *
+ * Regardless of what interface the data is coming in...completed packets are
+ * handed off here to be dealt with.
+ */
+
+
 #include "rx_packet_handler.h"
-#include "hardware_STM32F407G_DISC1.h"
+#include "TMC260.h"
 
 GenericPacketCircularBuffer gpcbs_rx_gp_queue;
 GenericPacket rx_gp_queue[RX_PACKET_HANDLER_GP_QUEUE_SIZE];
@@ -43,6 +54,8 @@ void rx_packet_handler(GenericPacket *gp_ptr)
    uint8_t retval_fdud;
    uint8_t retval;
    float proportional, integral, derivative;
+
+   tmc260_status_struct stat_struct;
 
    /* /\* At least figure out if we got here... *\/ */
    /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_RED) == Bit_SET) */
@@ -157,6 +170,25 @@ void rx_packet_handler(GenericPacket *gp_ptr)
                            /* } */
                         }
                      } /* MOTOR_STOP */
+                     break;
+                  case MOTOR_TMC260_QUERY_STATUS:
+                     {
+                        TMC260_status(TMC260_STATUS_CURRENT, &stat_struct, 0);
+                        /* Respond with the status. */
+                        retval_gpcb = gpcb_increment_temp_head(&gpcbs_rx_gp_queue);
+                        if(retval_gpcb == GP_CIRC_BUFFER_SUCCESS)
+                        {
+                           create_motor_tmc260_resp_status(&(gpcbs_rx_gp_queue.gpcb[gpcbs_rx_gp_queue.gpcb_head_temp]), stat_struct.position, stat_struct.stall_guard, stat_struct.current, stat_struct.status_byte);
+                           retval_gpcb = gpcb_increment_head(&gpcbs_rx_gp_queue);
+                           if(retval_gpcb == GP_CIRC_BUFFER_SUCCESS)
+                           {
+                              /* Add to full_duplex_outgoing_queueu....... */
+                              /* And don't forget to write that callback function... */
+                              retval_fdud = full_duplex_usart_dma_add_to_queue(&(gpcbs_rx_gp_queue.gpcb[gpcbs_rx_gp_queue.gpcb_head]), gpcbs_rx_gp_queue_callback, gpcbs_rx_gp_queue.gpcb_head);
+                           }
+                        }
+                     }
+                     break; /* MOTOR_TMC260_QUERY_STATUS */
                   default:
                      break;
                }

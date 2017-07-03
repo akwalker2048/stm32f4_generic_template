@@ -45,6 +45,7 @@ uint8_t TMC260_send_smarten(uint8_t seimin, uint8_t sedn, uint8_t semax, uint8_t
 uint8_t TMC260_send_sgcsconf(uint8_t sfilt, uint8_t sgt, uint8_t cs);
 uint8_t TMC260_send_drvconf(uint8_t tst, uint8_t slph, uint8_t slpl, uint8_t diss2g, uint8_t ts2g, uint8_t sdoff, uint8_t vsense, uint8_t rdsel);
 
+uint8_t TMC260_send_default_regs(void);
 
 /* Public function.  Doxygen documentation is in the header file. */
 void TMC260_initialize(void)
@@ -199,8 +200,8 @@ void TMC260_init_spi(void)
    SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
    SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
    SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
-   SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
-   SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
+   SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;  /* I think this should be SPI_CPOL_High...but it does something when Low. */
+   SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge; /* I think this should be SPI_CPHA_2Edge */
    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
    SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_256;
    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
@@ -273,6 +274,7 @@ uint8_t TMC260_spi_write_read_byte(uint8_t write_byte, uint8_t *read_byte)
    while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_TXE) == RESET);
    SPI_I2S_SendData(SPI1, (uint16_t)write_byte);
    while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_RXNE) == RESET);
+   while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_BSY) == SET);
    tmpval = SPI_I2S_ReceiveData(SPI1);
    *read_byte = (uint8_t)(tmpval & 0xFF);
 
@@ -298,15 +300,23 @@ uint8_t TMC260_spi_write_datagram(uint32_t datagram)
    uint8_t retval;
    uint32_t sdatagram;
    uint8_t byte1, byte2, byte3;
+   uint8_t ii;
 
-   sdatagram = (datagram<<12);
+   sdatagram = (datagram<<8);
    byte1 = (sdatagram>>24)&0xFF;
    byte2 = (sdatagram>>16)&0xFF;
    byte3 = (sdatagram>>8)&0xFF;
 
 
+   /* TEMP */
+   Delay(TMC260_SPI_DELAY_COUNT);
+
 
    GPIO_ResetBits(GPIOC, GPIO_Pin_13);
+
+   /* TEMP */
+   Delay(TMC260_SPI_DELAY_COUNT);
+
 
    /** @todo Is there any way to really check the retval here?  Not sure it
     *        really matters.  I think we'd want to write all the bytes anyway.
@@ -319,12 +329,19 @@ uint8_t TMC260_spi_write_datagram(uint32_t datagram)
    /* retval = TMC260_spi_write_byte(0x00); */
    /* retval = TMC260_spi_write_byte(0x55); */
 
-
    while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_BSY) == SET);
+   for(ii=0; ii<8; ii++)
+   {
+      Delay(TMC260_SPI_DELAY_COUNT);
+   }
+
    GPIO_SetBits(GPIOC, GPIO_Pin_13);
 
-   /* TEMP */
-   Delay(TMC260_SPI_DELAY_COUNT);
+   for(ii=0; ii<8; ii++)
+   {
+      Delay(TMC260_SPI_DELAY_COUNT);
+   }
+
 
    return TMC260_SUCCESS;
 }
@@ -409,16 +426,23 @@ uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_d
    uint32_t sdatagram, t1, t2, t3;
    uint8_t byte1, byte2, byte3;
    uint8_t rb1, rb2, rb3;
+   uint8_t ii;
 
    GenericPacket packet1, packet2, packet3;
 
-   sdatagram = (write_datagram<<12);
+   sdatagram = (write_datagram<<8);
    byte1 = (sdatagram>>24)&0xFF;
    byte2 = (sdatagram>>16)&0xFF;
    byte3 = (sdatagram>>8)&0xFF;
 
+   /* TEMP */
+   Delay(TMC260_SPI_DELAY_COUNT);
+
 
    GPIO_ResetBits(GPIOC, GPIO_Pin_13);
+
+   /* TEMP */
+   Delay(TMC260_SPI_DELAY_COUNT);
 
 
    /** @todo Is there any way to really check the retval here?  Not sure it
@@ -437,21 +461,29 @@ uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_d
    *read_datagram |= (t3<<8)  & 0x0000FF00;
    *read_datagram = ((*read_datagram)>>12);
 
-   create_universal_word(&packet1, *read_datagram);
+   create_universal_byte(&packet1, rb1);
    full_duplex_usart_dma_add_to_queue(&packet1, NULL, 0);
 
-   /* create_universal_byte(&packet2, (uint32_t)rb2); */
-   /* full_duplex_usart_dma_add_to_queue(&packet2, NULL, 0); */
+   create_universal_byte(&packet2, rb2);
+   full_duplex_usart_dma_add_to_queue(&packet2, NULL, 0);
 
-   /* create_universal_byte(&packet3, (uint32_t)rb3); */
-   /* full_duplex_usart_dma_add_to_queue(&packet3, NULL, 0); */
-
+   create_universal_byte(&packet3, rb3);
+   full_duplex_usart_dma_add_to_queue(&packet3, NULL, 0);
 
    while(SPI_I2S_GetFlagStatus(SPI1, SPI_FLAG_BSY) == SET);
+   /* TEMP */
+   for(ii=0; ii<8; ii++)
+   {
+      Delay(TMC260_SPI_DELAY_COUNT);
+   }
+
    GPIO_SetBits(GPIOC, GPIO_Pin_13);
 
    /* TEMP */
-   Delay(TMC260_SPI_DELAY_COUNT);
+   for(ii=0; ii<8; ii++)
+   {
+      Delay(TMC260_SPI_DELAY_COUNT);
+   }
 
    return TMC260_SUCCESS;
 }
@@ -474,15 +506,23 @@ void TMC260_init_config(void)
    debug_output_set(DEBUG_LED_RED);
 
    /* */
-   TMC260_send_drvconf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+   TMC260_send_drvconf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00);
    /* No step interpoloation, step on both edges, full stepping... */
-   TMC260_send_drvctrl_sdon(0, 1, MCIROSTEP_CONFIG_1);
+   TMC260_send_drvctrl_sdon(0x00, 0x01, MICROSTEP_CONFIG_64);
+
+   /* /\* /\\* *\\/ *\/ */
+   /* /\* TMC260_send_drvconf(0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00); *\/ */
+   /* /\* /\\* No step interpoloation, step on both edges, full stepping... *\\/ *\/ */
+   /* /\* TMC260_send_drvctrl_sdoff(0x01, 0xF0, 0x00, 0xF0); *\/ */
+
    /* */
-   TMC260_send_chopconf(0x02, 0x01, 0x00, 0x00, 0x10, 0x05, 0x07);
+   TMC260_send_chopconf(0x01, 0x01, 0x00, 0x06, 0x08, 0x00, 0x02);
    /* */
    TMC260_send_smarten(0x01, 0x00, 0x02, 0x00, 0x02);
    /* */
-   TMC260_send_sgcsconf(0x01, 0x00, 0x1F);
+   TMC260_send_sgcsconf(0x01, 0x3F, 0x0D);
+
+   /* TMC260_send_default_regs(); */
 
    debug_output_clear(DEBUG_LED_RED);
 }
@@ -595,7 +635,7 @@ uint8_t TMC260_send_chopconf(uint8_t tbl, uint8_t chm, uint8_t rndtf, uint8_t hd
    regval |= ((uint32_t)toff << TMC260_CHOPCONF_TOFF_SHIFT)&TMC260_CHOPCONF_TOFF_MASK;
 
    /* TEMP */
-   /* regval = 0x94557; */
+   /* regval = 0x94552; */
    /* regval = 0x901B4; */
 
    retval = TMC260_spi_write_datagram(regval);
@@ -714,6 +754,28 @@ uint8_t TMC260_send_drvconf(uint8_t tst, uint8_t slph, uint8_t slpl, uint8_t dis
 }
 
 
+uint8_t TMC260_send_default_regs(void)
+{
+   uint8_t retval;
+
+   /* /\* From Datasheet *\/ */
+   /* retval = TMC260_spi_write_datagram(0x94557); */
+   /* retval = TMC260_spi_write_datagram(0xD001F); */
+   /* retval = TMC260_spi_write_datagram(0xE0010); */
+   /* retval = TMC260_spi_write_datagram(0x00000); */
+   /* retval = TMC260_spi_write_datagram(0xA8202); */
+
+   /* From "Getting Started" */
+   retval = TMC260_spi_write_datagram(0x00000);
+   retval = TMC260_spi_write_datagram(0x90131);
+   retval = TMC260_spi_write_datagram(0xA0000);
+   retval = TMC260_spi_write_datagram(0xD0505);
+   retval = TMC260_spi_write_datagram(0xEF440);
+
+
+   return TMC260_SUCCESS;
+}
+
 /* Public Interface Functions - Doxygen Documentation in Header */
 void TMC260_enable(void)
 {
@@ -755,13 +817,11 @@ void TMC260_step(void)
    }
 }
 
-void TMC260_status(tmc260_status_struct *status, uint8_t send_packet)
+void TMC260_status(tmc260_status_types status_type, tmc260_status_struct *status, uint8_t send_packet)
 {
    GenericPacket packet;
 
-   TMC260_spi_read_status(TMC260_STATUS_POSITION, status);
-   /* TMC260_spi_read_status(TMC260_STATUS_STALLGUARD, status); */
-   /* TMC260_spi_read_status(TMC260_STATUS_CURRENT, status); */
+   TMC260_spi_read_status(status_type, status);
 
    if(send_packet)
    {

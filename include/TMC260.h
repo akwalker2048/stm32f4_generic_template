@@ -23,7 +23,7 @@ typedef enum {MICROSTEP_CONFIG_256 = 0,
               MICROSTEP_CONFIG_8,
               MICROSTEP_CONFIG_4,
               MICROSTEP_CONFIG_2,
-              MCIROSTEP_CONFIG_1} microstep_config;
+              MICROSTEP_CONFIG_1} microstep_config;
 
 
 /* TMC260 Function Return Codes */
@@ -31,7 +31,7 @@ typedef enum {MICROSTEP_CONFIG_256 = 0,
 #define TMC260_ERROR_INVALID_INPUT 1
 
 
-#define TMC260_SPI_DELAY_COUNT 0x000001FF
+#define TMC260_SPI_DELAY_COUNT 0x0000001F
 
 /** @todo Keep in mind that all registers will need to be shifted left 12 bits
  *  and transferred starting with the highest byte to lowest byte.  This will
@@ -245,6 +245,7 @@ void TMC260_step(void);
  *
  * @fn void TMC260_status(void)
  * @brief Report the status of the driver.
+ * @param tmc260_status_types status_type -> which set of info do we want
  * @param tmc260_status_struct *status -> filled with all current status info
  * @param uint8_t send_packet -> 0=does nothing, !0=sends GenericPacket
  * @return None
@@ -252,7 +253,7 @@ void TMC260_step(void);
  * The returned status will be different based on the RSEL bits.
  *
  */
-void TMC260_status(tmc260_status_struct *status, uint8_t send_packet);
+void TMC260_status(tmc260_status_types status_type, tmc260_status_struct *status, uint8_t send_packet);
 
 
 /**

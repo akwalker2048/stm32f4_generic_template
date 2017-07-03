@@ -10,7 +10,7 @@
 #ifndef TILT_STEPPER_MOTOR_CONTROL_H
 #define TILT_STEPPER_MOTOR_CONTROL_H
 
-#define DEFAULT_STEP_FREQ_HZ  200
+#define DEFAULT_STEP_FREQ_HZ  2000
 
 #define TILT_STEPPER_STATE_MACHINE_HZ 1000
 
@@ -36,5 +36,10 @@ typedef enum {TILT_STEPPER_INITIALIZE,
  */
 void tilt_stepper_motor_init(void);
 
+/**
+ * @todo When getting to the profile.  Maybe make sure that the last value is
+ *       zero just in case the number of elements is off.  Then just quit when
+ *       you get to zero.
+ */
 
 #endif

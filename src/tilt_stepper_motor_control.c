@@ -84,8 +84,8 @@ void tilt_stepper_motor_init_state_machine(void)
 
    /* Set up interrupt. */
    NVIC_InitStructure.NVIC_IRQChannel = TIM1_TRG_COM_TIM11_IRQn;
-   NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x00;
-   NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x01;
+   NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x01;
+   NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x00;
    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
    NVIC_Init(&NVIC_InitStructure);
 
@@ -175,6 +175,20 @@ void TIM5_IRQHandler(void)
          TMC260_step();
       }
 
+      if(ts_state == TILT_STEPPER_TILT_TABLE)
+      {
+         tilt_index++;
+         if((tilt_index < tilt_elements)&&(stepper_profile[tilt_index] > 0))
+         {
+            TMC260_step();
+            TIM_SetAutoreload(TIM5, stepper_profile[tilt_index]);
+         }
+         else
+         {
+            tilt_stepper_motor_state_change(TILT_STEPPER_TILT_TABLE, 1);
+         }
+      }
+
       TIM_ClearITPendingBit(TIM5, TIM_IT_Update);
    }
 }
@@ -201,21 +215,44 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
             /* debug_output_set(DEBUG_LED_RED); */
             TMC260_initialize();
 
-            if(last_dir)
-            {
-               last_dir = 0;
-               tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CW, 1);
-            }
-            else
-            {
-               last_dir = 1;
-               tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CCW, 1);
-            }
+            /* if(last_dir) */
+            /* { */
+            /*    last_dir = 0; */
+            /*    tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CW, 1); */
+            /* } */
+            /* else */
+            /* { */
+            /*    last_dir = 1; */
+            /*    tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CCW, 1); */
+            /* } */
+
+            tilt_stepper_motor_state_change(TILT_STEPPER_TILT_TABLE, 1);
 
             break;
          case TILT_STEPPER_HOME:
             break;
          case TILT_STEPPER_TILT_TABLE:
+            if(ts_state_timer == 1)
+            {
+               if(last_dir)
+               {
+                  last_dir = 0;
+                  TMC260_dir_CW();
+               }
+               else
+               {
+                  last_dir = 1;
+                  TMC260_dir_CCW();
+               }
+               tilt_index = 0;
+               TIM_SetAutoreload(TIM5, stepper_profile[tilt_index]);
+            }
+
+            /* if(ts_state_timer%8 == 0) */
+            /* { */
+            /*    TMC260_status(TMC260_STATUS_CURRENT, &stat_struct, 1); */
+            /* } */
+
             break;
          case TILT_STEPPER_TEST_CW:
             if(ts_state_timer == 1)
@@ -223,6 +260,12 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                /* debug_output_clear(DEBUG_LED_RED); */
                TMC260_dir_CW();
                TMC260_enable();
+            }
+
+
+            if(ts_state_timer%8 == 0)
+            {
+               TMC260_status(TMC260_STATUS_CURRENT, &stat_struct, 1);
             }
 
             pos_rad += 0.005f;
@@ -271,7 +314,7 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
          case TILT_STEPPER_TEST_DELAY:
             if(ts_state_timer == 1)
             {
-               TMC260_status(&stat_struct, 1);
+               TMC260_status(TMC260_STATUS_POSITION, &stat_struct, 1);
             }
 
             if(ts_state_timer > 1000)
