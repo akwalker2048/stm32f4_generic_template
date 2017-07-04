@@ -56,6 +56,8 @@ extern volatile uint8_t send_code_version;
 extern volatile motor_feedback_t mf;
 extern volatile uint8_t send_motor_feedback;
 
+extern volatile uint8_t tilt_stepper_motor_send_angle;
+
 /**
  * @brief  Main program
  * @param  None
@@ -145,6 +147,18 @@ int main(void)
 
       debug_output_toggle(DEBUG_LED_GREEN);
 
+
+      if(tilt_stepper_motor_send_angle)
+      {
+         tilt_stepper_motor_pos(&pos_rad);
+         create_motor_resp_position(&gp_pos_rad, pos_rad);
+         /**
+          * @todo Need to set up the callback function so that we don't
+          *       overwrite this packet with the next one.
+          */
+         full_duplex_usart_dma_add_to_queue(&gp_pos_rad, NULL, 0);
+         tilt_stepper_motor_send_angle = 0;
+      }
 
       /* tilt_motor_get_angle(&pos_rad); */
       /* if(fabs(pos_rad - prev_pos_rad) > 0.03) */

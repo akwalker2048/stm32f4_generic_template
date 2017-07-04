@@ -11,8 +11,11 @@
 #define TILT_STEPPER_MOTOR_CONTROL_H
 
 #define DEFAULT_STEP_FREQ_HZ  2000
+#define HOME_STEP_FREQ_HZ 2000
 
 #define TILT_STEPPER_STATE_MACHINE_HZ 1000
+
+#define TILT_STEPPER_TWO_PI 6.28318530718f
 
 typedef enum {TILT_STEPPER_INITIALIZE,
               TILT_STEPPER_HOME,
@@ -41,5 +44,7 @@ void tilt_stepper_motor_init(void);
  *       zero just in case the number of elements is off.  Then just quit when
  *       you get to zero.
  */
+
+void tilt_stepper_motor_pos(float *rad);
 
 #endif

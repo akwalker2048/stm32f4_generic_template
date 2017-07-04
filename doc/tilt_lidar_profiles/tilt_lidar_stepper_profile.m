@@ -2,7 +2,9 @@ clear all
 close all
 
 %%Stepper specific variables
-stepper_gear_ratio = 74.0/16.0;
+stepper_gear_ratio_num = 74.0;
+stepper_gear_ratio_den = 16.0;
+stepper_gear_ratio = stepper_gear_ratio_num / stepper_gear_ratio_den;
 steps_per_rev = 200;
 micro_steps_per_step = 64;
 micro_steps_per_rev = (steps_per_rev * micro_steps_per_step);
@@ -64,13 +66,16 @@ fprintf(fid, "\n");
 fprintf(fid, "/* Parameters used to calculate this table. */\n");
 fprintf(fid, "/* steps_per_rev = %u */\n", steps_per_rev);
 fprintf(fid, "/* micro_steps_per_step = %u */\n", micro_steps_per_step);
-fprintf(fid, "/* micro_steps_per_rev = %u */\n", micro_steps_per_rev);
+fprintf(fid, "uint32_t micro_steps_per_rev = %u;\n", micro_steps_per_rev);
 fprintf(fid, "/* tics_per_sec = %u */\n", tics_per_sec);
 fprintf(fid, "/* Table is in units of tics per micro step. */\n");
-fprintf(fid, "static uint32_t tilt_elements = %u;\n", size(t_stepper_tics,2));
+fprintf(fid, "float stepper_gear_ratio_num = %.12ff;\n", stepper_gear_ratio_num);
+fprintf(fid, "float stepper_gear_ratio_den = %.12ff;\n", stepper_gear_ratio_den);
+fprintf(fid, "float rad_per_micro_step = %.12ff;\n", rad_per_micro_step);
+fprintf(fid, "static uint32_t tilt_elements = %u;\n", size(t_stepper_tics,2)-1);
 fprintf(fid, "static uint32_t stepper_profile[] = { \n");
-fprintf(fid, "%u, %u, %u, %u, %u, %u, %u, %u,\n", t_stepper_tics);
-fprintf(fid, "};\n");
+fprintf(fid, "%u, %u, %u, %u, %u, %u, %u, %u,\n", t_stepper_tics(2:size(t_stepper_tics,2)));
+fprintf(fid, "0};\n");
 fprintf(fid, "\n");
 fprintf(fid, "#endif\n");
 

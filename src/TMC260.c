@@ -69,6 +69,7 @@ void TMC260_initialize(void)
  * - PA0  -> MOTOR_EN
  * - PA1  -> MOTOR_DIR
  * - PA2  -> MOTOR_STEP
+ * - PC0  -> HOME (covered is low...uncovered is high)
  * - PC2  -> SG_260 (step guard...did we stall)
  * - PC13 -> CS_260 (chip select...the rest of SPI initialized elsewhere)
  *
@@ -81,6 +82,8 @@ void TMC260_init_gpio(void)
 
    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+   /* Enable clock for SYSCFG */
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
 
    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2;
@@ -120,6 +123,8 @@ void TMC260_init_gpio(void)
    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
    NVIC_Init(&NVIC_InitStructure);
 
+
+
 }
 
 /**
@@ -137,11 +142,14 @@ void EXTI2_IRQHandler(void)
        * @todo Need to actually implement stall guard functionality here.  Maybe
        *       we should just kill the enable pin?
        */
-      /* debug_output_toggle(DEBUG_LED_RED); */
+      debug_output_toggle(DEBUG_LED_RED);
 
       EXTI_ClearITPendingBit(EXTI_Line2);
    }
 }
+
+
+
 
 
 /**
@@ -516,11 +524,15 @@ void TMC260_init_config(void)
    /* /\* TMC260_send_drvctrl_sdoff(0x01, 0xF0, 0x00, 0xF0); *\/ */
 
    /* */
-   TMC260_send_chopconf(0x01, 0x01, 0x00, 0x06, 0x08, 0x00, 0x02);
+   TMC260_send_chopconf(0x02, 0x01, 0x00, 0x00, 0x0A, 0x05, 0x07);
    /* */
    TMC260_send_smarten(0x01, 0x00, 0x02, 0x00, 0x02);
-   /* */
-   TMC260_send_sgcsconf(0x01, 0x3F, 0x0D);
+   /* /\* Lower Current *\/ */
+   /* TMC260_send_sgcsconf(0x01, 0x3F, 0x0D); */
+   /* Mid Current */
+   TMC260_send_sgcsconf(0x01, 0x3F, 0x12);
+   /* /\* High Current *\/ */
+   /* TMC260_send_sgcsconf(0x01, 0x3F, 0x1F); */
 
    /* TMC260_send_default_regs(); */
 
@@ -789,11 +801,13 @@ void TMC260_disable(void)
 
 void TMC260_dir_CW(void)
 {
+   /* CCW looking in on the pinion. Rotating LIDAR radians Increasing. */
    GPIO_ResetBits(GPIOA, GPIO_Pin_1);
 }
 
 void TMC260_dir_CCW(void)
 {
+   /* CW looking in on the pinion. Rotating LIDAR radians Decreasing. */
    GPIO_SetBits(GPIOA, GPIO_Pin_1);
 }
 
