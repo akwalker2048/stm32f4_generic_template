@@ -363,6 +363,11 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
       /* Not perfect...but at least some protection from overrotation. */
       if((ts_state != TILT_STEPPER_HOME)&&(ts_state != TILT_STEPPER_INITIALIZE))
       {
+         /**
+          * @todo If either of these conditions are met...send a notification packet!!!!
+          *       ROS needs to know we had to rehome....
+          */
+
          if(current_pos_rad > 3.5f)
          {
             tilt_stepper_motor_state_change(TILT_STEPPER_HOME, 1);
@@ -396,6 +401,15 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                TIM_SetAutoreload(TIM5, TimerPeriod);
                TIM_Cmd(TIM5, ENABLE);
 
+               /**
+                * @todo This is not safe yet... It is still possible to start
+                *       off in the wrong direction.  In the case that the flag is
+                *       uncovered, we are always safe...but if it is covered,
+                *       we do not know which side of the gap we are starting
+                *       on.  We need to watch how far we've gone without
+                *       seeing an edge and turn around if we are going in the
+                *       wrong direction.
+                */
                if(steps_from_home == 0)
                {
                   if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1) == Bit_SET)
@@ -438,7 +452,10 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                   tilt_stepper_motor_set_CCW();
                }
                tilt_index = 0;
+
+               TIM_Cmd(TIM5, DISABLE);
                TIM_SetAutoreload(TIM5, stepper_profile[tilt_index]);
+               TIM_Cmd(TIM5, ENABLE);
             }
 
 
@@ -446,10 +463,12 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
          case TILT_STEPPER_TEST_CW:
             if(ts_state_timer == 1)
             {
+               tilt_stepper_motor_set_CW();
+
+               TIM_Cmd(TIM5, DISABLE);
                TimerPeriod = (SystemCoreClock / (DEFAULT_STEP_FREQ_HZ * 2 * (pscale + 1))) - 1;
                TIM_SetAutoreload(TIM5, TimerPeriod);
-
-               tilt_stepper_motor_set_CW();
+               TIM_Cmd(TIM5, ENABLE);
             }
 
 
@@ -467,10 +486,13 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
          case TILT_STEPPER_TEST_CCW:
             if(ts_state_timer == 1)
             {
-               TimerPeriod = (SystemCoreClock / (DEFAULT_STEP_FREQ_HZ * 2 * (pscale + 1))) - 1;
-               TIM_SetAutoreload(TIM5, TimerPeriod);
 
                tilt_stepper_motor_set_CCW();
+
+               TIM_Cmd(TIM5, DISABLE);
+               TimerPeriod = (SystemCoreClock / (DEFAULT_STEP_FREQ_HZ * 2 * (pscale + 1))) - 1;
+               TIM_SetAutoreload(TIM5, TimerPeriod);
+               TIM_Cmd(TIM5, ENABLE);
             }
 
             if(ts_state_timer > 80000)
