@@ -25,7 +25,9 @@ typedef enum {TILT_STEPPER_INITIALIZE,
               TILT_STEPPER_TEST_DELAY,
               TILT_STEPPER_ERROR} tilt_stepper_states;
 
-
+typedef enum {TILT_STEPPER_DIR_CW = 0,
+              TILT_STEPPER_DIR_CCW,
+              TILT_STEPPER_DIR_STOPPED} tilt_stepper_dirs;
 
 /**
  * @fn void tilt_stepper_motor_init(void)

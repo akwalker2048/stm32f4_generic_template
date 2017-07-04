@@ -30,6 +30,9 @@ tmc260_status_struct stat_struct;
 uint8_t last_dir = 0;
 
 volatile uint32_t tilt_index = 0;
+volatile int32_t steps_from_home = 0;
+tilt_stepper_dirs current_step_dir = TILT_STEPPER_DIR_STOPPED;
+float current_pos_rad = 0.0f;
 
 GenericPacket gp_pos_rad;
 float pos_rad = 0.0f;
@@ -46,6 +49,9 @@ void tilt_stepper_motor_init_state_machine(void);
 void tilt_stepper_motor_init_step_timer(void);
 void tilt_stepper_motor_init_home_sensor(void);
 void tilt_stepper_motor_state_change(tilt_stepper_states new_state, uint8_t reset_timer);
+void tilt_stepper_motor_set_CCW(void);
+void tilt_stepper_motor_set_CW(void);
+void tilt_stepper_motor_step(void);
 
 /* Public function.  Doxygen documentation is in the header file. */
 void tilt_stepper_motor_init(void)
@@ -217,17 +223,57 @@ void EXTI1_IRQHandler(void)
        * @todo Need to actually implement home functionality.
        */
       /* Reset our position to zero. */
-      pos_rad = 0.0f;
-
-      if(ts_state == TILT_STEPPER_HOME)
+      if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1) == Bit_SET)
       {
-         /* Get us tilting in the correct direction. */
-         last_dir = 1;
+         if(current_step_dir == TILT_STEPPER_DIR_CW)
+         {
+            /* Flag is covered. We just crossed home. */
+            current_pos_rad = 0.0f;
+            steps_from_home = 0;
 
-         /* Now start us tilting. */
-         tilt_stepper_motor_state_change(TILT_STEPPER_TEST_DELAY, 1);
+            debug_output_set(DEBUG_LED_RED);
+         }
+         else
+         {
+            /* Flag is uncovered.  We need to go CCW until we cover it. */
+            current_pos_rad = 3.14f;
+            steps_from_home = (int32_t)((current_pos_rad * (float)micro_steps_per_rev * stepper_gear_ratio_num) / (stepper_gear_ratio_den * TILT_STEPPER_TWO_PI));
+
+            debug_output_clear(DEBUG_LED_RED);
+         }
+      }
+      else
+      {
+         if(current_step_dir == TILT_STEPPER_DIR_CW)
+         {
+            /* Flag is uncovered.  We need to go CCW until we cover it. */
+            current_pos_rad = 3.14f;
+            steps_from_home = (int32_t)((current_pos_rad * (float)micro_steps_per_rev * stepper_gear_ratio_num) / (stepper_gear_ratio_den * TILT_STEPPER_TWO_PI));
+
+            debug_output_clear(DEBUG_LED_ORANGE);
+         }
+         else
+         {
+            /* Flag is covered. We just crossed home. */
+            current_pos_rad = 0.0f;
+            steps_from_home = 0;
+
+            debug_output_set(DEBUG_LED_ORANGE);
+         }
       }
 
+
+      if(steps_from_home == 0)
+      {
+         if(ts_state == TILT_STEPPER_HOME)
+         {
+            /* Get us tilting in the correct direction. */
+            last_dir = 1;
+
+            /* Now start us tilting. */
+            tilt_stepper_motor_state_change(TILT_STEPPER_TEST_DELAY, 1);
+         }
+      }
 
       EXTI_ClearITPendingBit(EXTI_Line1);
    }
@@ -261,12 +307,12 @@ void TIM5_IRQHandler(void)
 
       if((ts_state == TILT_STEPPER_TEST_CW)||(ts_state == TILT_STEPPER_TEST_CCW))
       {
-         TMC260_step();
+         tilt_stepper_motor_step();
       }
 
       if(ts_state == TILT_STEPPER_HOME)
       {
-         TMC260_step();
+         tilt_stepper_motor_step();
       }
 
       if(ts_state == TILT_STEPPER_TILT_TABLE)
@@ -274,7 +320,7 @@ void TIM5_IRQHandler(void)
          tilt_index++;
          if((tilt_index < tilt_elements)&&(stepper_profile[tilt_index] > 0))
          {
-            TMC260_step();
+            tilt_stepper_motor_step();
             TIM_SetAutoreload(TIM5, stepper_profile[tilt_index]);
          }
          else
@@ -303,13 +349,39 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
 
       ts_state_timer++;
 
+
+      if(ts_state_timer%25 == 0)
+      {
+         if(tilt_stepper_motor_send_angle == 0)
+         {
+            tilt_stepper_motor_send_angle = 1;
+            /* TMC260_status(TMC260_STATUS_CURRENT, &stat_struct, 1); */
+         }
+      }
+
+
+      /* Not perfect...but at least some protection from overrotation. */
+      if((ts_state != TILT_STEPPER_HOME)&&(ts_state != TILT_STEPPER_INITIALIZE))
+      {
+         if(current_pos_rad > 3.5f)
+         {
+            tilt_stepper_motor_state_change(TILT_STEPPER_HOME, 1);
+         }
+
+         if(current_pos_rad < -0.5f)
+         {
+            tilt_stepper_motor_state_change(TILT_STEPPER_HOME, 1);
+         }
+      }
+
       switch(ts_state)
       {
          case TILT_STEPPER_INITIALIZE:
-            /* debug_output_set(DEBUG_LED_RED); */
+
             TMC260_initialize();
 
             tilt_stepper_motor_state_change(TILT_STEPPER_HOME, 1);
+            /* tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CW, 1); */
 
             break;
          case TILT_STEPPER_HOME:
@@ -319,20 +391,34 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
              */
             if(ts_state_timer == 1)
             {
+               TIM_Cmd(TIM5, DISABLE);
                TimerPeriod = (SystemCoreClock / (HOME_STEP_FREQ_HZ * 2 * (pscale + 1))) - 1;
                TIM_SetAutoreload(TIM5, TimerPeriod);
+               TIM_Cmd(TIM5, ENABLE);
 
-               if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1) == Bit_SET)
+               if(steps_from_home == 0)
                {
-                  /* Flag is uncovered.  We need to go CCW until we cover it. */
-                  TMC260_dir_CCW();
-                  home_dir = 1;
+                  if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1) == Bit_SET)
+                  {
+                     /* Flag is uncovered.  We need to go CCW until we cover it. */
+                     tilt_stepper_motor_set_CCW();
+                  }
+                  else
+                  {
+                     /* Flag is covered. We need to go CW until we uncover it. */
+                     tilt_stepper_motor_set_CW();
+                  }
                }
                else
                {
-                  /* Flag is covered. We need to go CW until we uncover it. */
-                  TMC260_dir_CW();
-                  home_dir = 0;
+                  if(current_pos_rad > 0.0f)
+                  {
+                     tilt_stepper_motor_set_CCW();
+                  }
+                  else
+                  {
+                     tilt_stepper_motor_set_CW();
+                  }
                }
 
             }
@@ -344,25 +430,17 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                if(last_dir)
                {
                   last_dir = 0;
-                  TMC260_dir_CW();
+                  tilt_stepper_motor_set_CW();
                }
                else
                {
                   last_dir = 1;
-                  TMC260_dir_CCW();
+                  tilt_stepper_motor_set_CCW();
                }
                tilt_index = 0;
                TIM_SetAutoreload(TIM5, stepper_profile[tilt_index]);
             }
 
-            if(ts_state_timer%25 == 0)
-            {
-               if(tilt_stepper_motor_send_angle == 0)
-               {
-                  tilt_stepper_motor_send_angle = 1;
-                  /* TMC260_status(TMC260_STATUS_CURRENT, &stat_struct, 1); */
-               }
-            }
 
             break;
          case TILT_STEPPER_TEST_CW:
@@ -371,32 +449,19 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                TimerPeriod = (SystemCoreClock / (DEFAULT_STEP_FREQ_HZ * 2 * (pscale + 1))) - 1;
                TIM_SetAutoreload(TIM5, TimerPeriod);
 
-               /* debug_output_clear(DEBUG_LED_RED); */
-               TMC260_dir_CW();
-               TMC260_enable();
+               tilt_stepper_motor_set_CW();
             }
 
 
-            if(ts_state_timer%8 == 0)
-            {
-               TMC260_status(TMC260_STATUS_CURRENT, &stat_struct, 1);
-            }
+            /* if(ts_state_timer%8 == 0) */
+            /* { */
+            /*    TMC260_status(TMC260_STATUS_CURRENT, &stat_struct, 1); */
+            /* } */
 
-            pos_rad += 0.005f;
-            if(pos_rad >= 3.14f)
-            {
-               pos_rad = 3.14f;
-            }
-            /**
-             * @todo Need to add the callback for the outgoing queue.
-             */
-            create_motor_resp_position(&gp_pos_rad, pos_rad);
-            full_duplex_usart_dma_add_to_queue(&gp_pos_rad, NULL, 0);
-
-            if(ts_state_timer > 1000)
+            if(ts_state_timer > 80000)
             {
                TMC260_disable();
-               tilt_stepper_motor_state_change(TILT_STEPPER_TEST_DELAY, 1);
+               tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CCW, 1);
             }
             break;
          case TILT_STEPPER_TEST_CCW:
@@ -405,26 +470,13 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                TimerPeriod = (SystemCoreClock / (DEFAULT_STEP_FREQ_HZ * 2 * (pscale + 1))) - 1;
                TIM_SetAutoreload(TIM5, TimerPeriod);
 
-               TMC260_dir_CCW();
-               TMC260_enable();
+               tilt_stepper_motor_set_CCW();
             }
 
-            pos_rad -= 0.005f;
-            if(pos_rad < 0.0f)
-            {
-               pos_rad = 0.0f;
-            }
-
-            /**
-             * @todo Need to add the callback for the outgoing queue.
-             */
-            create_motor_resp_position(&gp_pos_rad, pos_rad);
-            full_duplex_usart_dma_add_to_queue(&gp_pos_rad, NULL, 0);
-
-            if(ts_state_timer > 1000)
+            if(ts_state_timer > 80000)
             {
                TMC260_disable();
-               tilt_stepper_motor_state_change(TILT_STEPPER_TEST_DELAY, 1);
+               tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CW, 1);
             }
 
             break;
@@ -473,11 +525,48 @@ void tilt_stepper_motor_state_change(tilt_stepper_states new_state, uint8_t rese
 void tilt_stepper_motor_pos(float *rad)
 {
 
-   *rad = (((float)tilt_index/(float)micro_steps_per_rev)*stepper_gear_ratio_den / stepper_gear_ratio_num) * TILT_STEPPER_TWO_PI;
+   /* *rad = (((float)tilt_index/(float)micro_steps_per_rev)*stepper_gear_ratio_den / stepper_gear_ratio_num) * TILT_STEPPER_TWO_PI; */
 
-   if(last_dir == 0)
+   /* if(last_dir == 0) */
+   /* { */
+   /*    *rad = (TILT_STEPPER_TWO_PI / 2.0f) - *rad; */
+   /* } */
+
+   *rad = current_pos_rad;
+
+}
+
+
+void tilt_stepper_motor_step(void)
+{
+
+   if(current_step_dir == TILT_STEPPER_DIR_CW)
    {
-      *rad = (TILT_STEPPER_TWO_PI / 2.0f) - *rad;
+      steps_from_home++;
    }
 
+   if(current_step_dir == TILT_STEPPER_DIR_CCW)
+   {
+      steps_from_home--;
+   }
+
+   /* current_pos_rad = (((float)steps_from_home/(float)micro_steps_per_rev)*stepper_gear_ratio_den / stepper_gear_ratio_num) * TILT_STEPPER_TWO_PI; */
+
+   current_pos_rad = (((float)steps_from_home/(float)micro_steps_per_rev)*(stepper_gear_ratio_den / stepper_gear_ratio_num)) * TILT_STEPPER_TWO_PI;
+
+   TMC260_enable();
+   TMC260_step();
+}
+
+
+void tilt_stepper_motor_set_CW(void)
+{
+   current_step_dir = TILT_STEPPER_DIR_CW;
+   TMC260_dir_CW();
+}
+
+void tilt_stepper_motor_set_CCW(void)
+{
+   current_step_dir = TILT_STEPPER_DIR_CCW;
+   TMC260_dir_CCW();
 }
