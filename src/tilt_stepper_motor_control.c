@@ -451,8 +451,8 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                   last_dir = 1;
                   tilt_stepper_motor_set_CCW();
                }
-               tilt_index = 0;
 
+               tilt_index = 0;
                TIM_Cmd(TIM5, DISABLE);
                TIM_SetAutoreload(TIM5, stepper_profile[tilt_index]);
                TIM_Cmd(TIM5, ENABLE);
