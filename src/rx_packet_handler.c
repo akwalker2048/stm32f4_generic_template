@@ -67,6 +67,7 @@ void rx_packet_handler(GenericPacket *gp_ptr)
    uint8_t sfilt, sgt, cs;
    uint8_t tst, slph, slpl, diss2g, ts2g, sdoff, vsense, rdsel;
 
+   float pos;
 
    if(rx_packet_handler_initialized)
    {
@@ -132,45 +133,30 @@ void rx_packet_handler(GenericPacket *gp_ptr)
                      break;
                   case MOTOR_START:
                      {
-                        retval = tilt_motor_start();
-                        if(retval == 0)
-                        {
-                           /* AWALKER - Replace with new full_duplex_usart_dma */
-                           /* retval = get_next_outgoing_gp_head(&next_outgoing_head); */
-                           /* if(retval == 0) */
-                           /* { */
-                           /*       create_motor_start(&(outgoing_circ_buffer[next_outgoing_head])); */
-                           /*       increment_outgoing_gp_head(); */
-                           /* } */
-                           /* else */
-                           /* { */
-                           /*    /\* Someone else was already writing the next outgoing */
-                           /*       gp.  We need to handle that somehow. */
-                           /*    *\/ */
-                           /* } */
-                        }
+                        /* retval = tilt_motor_start(); */
+
+                        tilt_stepper_motor_tilt();
+
                      } /* MOTOR_START */
                      break;
                   case MOTOR_STOP:
                      {
-                        retval = tilt_motor_stop();
-                        if(retval == 0)
-                        {
-                           /* AWALKER - Replace with new full_duplex_usart_dma */
-                           /* retval = get_next_outgoing_gp_head(&next_outgoing_head); */
-                           /* if(retval == 0) */
-                           /* { */
-                           /*    create_motor_stop(&(outgoing_circ_buffer[next_outgoing_head])); */
-                           /*    increment_outgoing_gp_head(); */
-                           /* } */
-                           /* else */
-                           /* { */
-                           /*    /\* Someone else was already writing the next outgoing */
-                           /*       gp.  We need to handle that somehow. */
-                           /*    *\/ */
-                           /* } */
-                        }
+                        /* retval = tilt_motor_stop(); */
+
+                        tilt_stepper_motor_stop();
+
                      } /* MOTOR_STOP */
+                     break;
+                  case MOTOR_HOME:
+                     {
+                        tilt_stepper_motor_home();
+                     } /* MOTOR_HOME */
+                     break;
+                  case MOTOR_SET_POSITION:
+                     {
+                        extract_motor_set_position(gp_ptr, &pos);
+                        tilt_stepper_motor_go_to_pos(pos);
+                     }
                      break;
                   case MOTOR_TMC260_QUERY_STATUS:
                      {

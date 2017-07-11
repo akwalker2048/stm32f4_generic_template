@@ -11,7 +11,10 @@
 #define TILT_STEPPER_MOTOR_CONTROL_H
 
 #define DEFAULT_STEP_FREQ_HZ  2000
-#define HOME_STEP_FREQ_HZ 2000
+#define STEP_RATE_ACCEL        100
+
+#define HOME_STEP_FREQ_HZ 16000
+
 
 #define TILT_STEPPER_STATE_MACHINE_HZ 1000
 
@@ -19,6 +22,8 @@
 
 typedef enum {TILT_STEPPER_INITIALIZE,
               TILT_STEPPER_HOME,
+              TILT_STEPPER_HOLD,
+              TILT_STEPPER_FIND_POS,
               TILT_STEPPER_TILT_TABLE,
               TILT_STEPPER_TEST_CW,
               TILT_STEPPER_TEST_CCW,

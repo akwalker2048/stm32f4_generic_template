@@ -801,12 +801,16 @@ uint8_t TMC260_send_default_regs(void)
 /* Public Interface Functions - Doxygen Documentation in Header */
 void TMC260_enable(void)
 {
+#ifdef TOS_100_DEV_BOARD
    GPIO_ResetBits(GPIOA, GPIO_Pin_0);
+#endif
 }
 
 void TMC260_disable(void)
 {
+#ifdef TOS_100_DEV_BOARD
    GPIO_SetBits(GPIOA, GPIO_Pin_0);
+#endif
 }
 
 void TMC260_dir_CW(void)

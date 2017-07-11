@@ -24,6 +24,7 @@
 
 uint32_t ts_state_timer = 0;
 tilt_stepper_states ts_state = TILT_STEPPER_INITIALIZE;
+tilt_stepper_states ts_state_after_home =  TILT_STEPPER_TEST_DELAY;
 
 tmc260_status_struct stat_struct;
 
@@ -32,7 +33,9 @@ uint8_t last_dir = 0;
 volatile uint32_t tilt_index = 0;
 volatile int32_t steps_from_home = 0;
 tilt_stepper_dirs current_step_dir = TILT_STEPPER_DIR_STOPPED;
+float current_step_freq = 0.0f;
 float current_pos_rad = 0.0f;
+float target_pos_rad = 0.0f;
 
 GenericPacket gp_pos_rad;
 float pos_rad = 0.0f;
@@ -53,6 +56,7 @@ void tilt_stepper_motor_state_change(tilt_stepper_states new_state, uint8_t rese
 void tilt_stepper_motor_set_CCW(void);
 void tilt_stepper_motor_set_CW(void);
 void tilt_stepper_motor_step(void);
+void tilt_stepper_motor_home_flag_handler(uint8_t home_flag_status);
 
 /* Public function.  Doxygen documentation is in the header file. */
 void tilt_stepper_motor_init(void)
@@ -240,8 +244,9 @@ void tilt_stepper_motor_init_step_timer(void)
     * factor of 2 in the denominator. Assumes the Prescaler is 0 and  that
     * TimerPeriod wouldn't roll a 32 bit number.
     */
+   current_step_freq = DEFAULT_STEP_FREQ_HZ;
    pscale = 0;
-   TimerPeriod = (SystemCoreClock / (DEFAULT_STEP_FREQ_HZ * 2 * (pscale + 1))) - 1;
+   TimerPeriod = (SystemCoreClock / (current_step_freq * 2 * (pscale + 1))) - 1;
 
    /* Time Base configuration */
    TIM_TimeBaseStructure.TIM_Prescaler = pscale;
@@ -274,63 +279,13 @@ void tilt_stepper_motor_init_step_timer(void)
  */
 void EXTI1_IRQHandler(void)
 {
+   uint8_t home_flag_state;
+
    if(EXTI_GetITStatus(EXTI_Line1) != RESET)
    {
-      /**
-       * @todo Need to actually implement home functionality.
-       */
-      /* Reset our position to zero. */
-      if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1) == Bit_SET)
-      {
-         if(current_step_dir == TILT_STEPPER_DIR_CW)
-         {
-            /* Flag is covered. We just crossed home. */
-            current_pos_rad = 0.0f;
-            steps_from_home = 0;
+      home_flag_state = GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1);
 
-            debug_output_set(DEBUG_LED_RED);
-         }
-         else
-         {
-            /* Flag is uncovered.  We need to go CCW until we cover it. */
-            current_pos_rad = 3.14f;
-            steps_from_home = (int32_t)((current_pos_rad * (float)micro_steps_per_rev * stepper_gear_ratio_num) / (stepper_gear_ratio_den * TILT_STEPPER_TWO_PI));
-
-            debug_output_clear(DEBUG_LED_RED);
-         }
-      }
-      else
-      {
-         if(current_step_dir == TILT_STEPPER_DIR_CW)
-         {
-            /* Flag is uncovered.  We need to go CCW until we cover it. */
-            current_pos_rad = 3.14f;
-            steps_from_home = (int32_t)((current_pos_rad * (float)micro_steps_per_rev * stepper_gear_ratio_num) / (stepper_gear_ratio_den * TILT_STEPPER_TWO_PI));
-
-            debug_output_clear(DEBUG_LED_ORANGE);
-         }
-         else
-         {
-            /* Flag is covered. We just crossed home. */
-            current_pos_rad = 0.0f;
-            steps_from_home = 0;
-
-            debug_output_set(DEBUG_LED_ORANGE);
-         }
-      }
-
-
-      if(steps_from_home == 0)
-      {
-         if(ts_state == TILT_STEPPER_HOME)
-         {
-            /* Get us tilting in the correct direction. */
-            last_dir = 1;
-
-            /* Now start us tilting. */
-            tilt_stepper_motor_state_change(TILT_STEPPER_TEST_DELAY, 1);
-         }
-      }
+      tilt_stepper_motor_home_flag_handler(home_flag_state);
 
       EXTI_ClearITPendingBit(EXTI_Line1);
    }
@@ -346,68 +301,78 @@ void EXTI1_IRQHandler(void)
  */
 void EXTI0_IRQHandler(void)
 {
+   uint8_t home_flag_state;
+
    if(EXTI_GetITStatus(EXTI_Line0) != RESET)
    {
-      /**
-       * @todo Need to actually implement home functionality.
-       */
-      /* Reset our position to zero. */
-      if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_0) == Bit_SET)
-      {
-         if(current_step_dir == TILT_STEPPER_DIR_CW)
-         {
-            /* Flag is covered. We just crossed home. */
-            current_pos_rad = 0.0f;
-            steps_from_home = 0;
+      home_flag_state = GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_0);
 
-            debug_output_set(DEBUG_LED_RED);
-         }
-         else
-         {
-            /* Flag is uncovered.  We need to go CCW until we cover it. */
-            current_pos_rad = 3.14f;
-            steps_from_home = (int32_t)((current_pos_rad * (float)micro_steps_per_rev * stepper_gear_ratio_num) / (stepper_gear_ratio_den * TILT_STEPPER_TWO_PI));
-
-            debug_output_clear(DEBUG_LED_RED);
-         }
-      }
-      else
-      {
-         if(current_step_dir == TILT_STEPPER_DIR_CW)
-         {
-            /* Flag is uncovered.  We need to go CCW until we cover it. */
-            current_pos_rad = 3.14f;
-            steps_from_home = (int32_t)((current_pos_rad * (float)micro_steps_per_rev * stepper_gear_ratio_num) / (stepper_gear_ratio_den * TILT_STEPPER_TWO_PI));
-
-            debug_output_clear(DEBUG_LED_ORANGE);
-         }
-         else
-         {
-            /* Flag is covered. We just crossed home. */
-            current_pos_rad = 0.0f;
-            steps_from_home = 0;
-
-            debug_output_set(DEBUG_LED_ORANGE);
-         }
-      }
-
-
-      if(steps_from_home == 0)
-      {
-         if(ts_state == TILT_STEPPER_HOME)
-         {
-            /* Get us tilting in the correct direction. */
-            last_dir = 1;
-
-            /* Now start us tilting. */
-            tilt_stepper_motor_state_change(TILT_STEPPER_TEST_DELAY, 1);
-         }
-      }
+      tilt_stepper_motor_home_flag_handler(home_flag_state);
 
       EXTI_ClearITPendingBit(EXTI_Line0);
    }
 }
 
+
+void tilt_stepper_motor_home_flag_handler(uint8_t home_flag_status)
+{
+   /**
+    * @todo Need to actually implement home functionality.
+    */
+   /* Reset our position to zero. */
+   if(home_flag_status == Bit_SET)
+   {
+      if(current_step_dir == TILT_STEPPER_DIR_CW)
+      {
+         /* Flag is covered. We just crossed home. */
+         current_pos_rad = 0.0f;
+         steps_from_home = 0;
+
+         debug_output_set(DEBUG_LED_RED);
+      }
+      else
+      {
+         /* Flag is uncovered.  We need to go CCW until we cover it. */
+         current_pos_rad = 3.14f;
+         steps_from_home = (int32_t)((current_pos_rad * (float)micro_steps_per_rev * stepper_gear_ratio_num) / (stepper_gear_ratio_den * TILT_STEPPER_TWO_PI));
+
+         debug_output_clear(DEBUG_LED_RED);
+      }
+   }
+   else
+   {
+      if(current_step_dir == TILT_STEPPER_DIR_CW)
+      {
+         /* Flag is uncovered.  We need to go CCW until we cover it. */
+         current_pos_rad = 3.14f;
+         steps_from_home = (int32_t)((current_pos_rad * (float)micro_steps_per_rev * stepper_gear_ratio_num) / (stepper_gear_ratio_den * TILT_STEPPER_TWO_PI));
+
+         debug_output_clear(DEBUG_LED_ORANGE);
+      }
+      else
+      {
+         /* Flag is covered. We just crossed home. */
+         current_pos_rad = 0.0f;
+         steps_from_home = 0;
+
+         debug_output_set(DEBUG_LED_ORANGE);
+      }
+   }
+
+
+   if(steps_from_home == 0)
+   {
+      if(ts_state == TILT_STEPPER_HOME)
+      {
+         /* Get us tilting in the correct direction. */
+         last_dir = 1;
+
+         /* We're home! */
+         tilt_stepper_motor_state_change(ts_state_after_home, 1);
+      }
+   }
+
+}
 
 
 /**
@@ -440,8 +405,52 @@ void TIM5_IRQHandler(void)
          tilt_stepper_motor_step();
       }
 
+      if(ts_state == TILT_STEPPER_FIND_POS)
+      {
+
+         if(current_step_freq < HOME_STEP_FREQ_HZ)
+         {
+            current_step_freq = current_step_freq + STEP_RATE_ACCEL;
+            if(current_step_freq > HOME_STEP_FREQ_HZ)
+            {
+               current_step_freq = HOME_STEP_FREQ_HZ;
+            }
+
+            TimerPeriod = (SystemCoreClock / (current_step_freq * 2 * (pscale + 1))) - 1;
+            TIM_SetAutoreload(TIM5, TimerPeriod);
+         }
+
+         if(current_pos_rad > target_pos_rad)
+         {
+            tilt_stepper_motor_step();
+            if(current_pos_rad <= target_pos_rad)
+            {
+               tilt_stepper_motor_state_change(TILT_STEPPER_HOLD ,1);
+            }
+         }
+         else
+         {
+            tilt_stepper_motor_step();
+            if(current_pos_rad >= target_pos_rad)
+            {
+               tilt_stepper_motor_state_change(TILT_STEPPER_HOLD ,1);
+            }
+         }
+      }
+
       if(ts_state == TILT_STEPPER_HOME)
       {
+         if(current_step_freq < HOME_STEP_FREQ_HZ)
+         {
+            current_step_freq = current_step_freq + STEP_RATE_ACCEL;
+            if(current_step_freq > HOME_STEP_FREQ_HZ)
+            {
+               current_step_freq = HOME_STEP_FREQ_HZ;
+            }
+
+            TimerPeriod = (SystemCoreClock / (current_step_freq * 2 * (pscale + 1))) - 1;
+            TIM_SetAutoreload(TIM5, TimerPeriod);
+         }
          tilt_stepper_motor_step();
       }
 
@@ -515,6 +524,7 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
 
             TMC260_initialize();
 
+            ts_state_after_home = TILT_STEPPER_TEST_DELAY;
             tilt_stepper_motor_state_change(TILT_STEPPER_HOME, 1);
             /* tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CW, 1); */
 
@@ -528,7 +538,8 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
             {
                TMC260_disable();
                TIM_Cmd(TIM5, DISABLE);
-               TimerPeriod = (SystemCoreClock / (HOME_STEP_FREQ_HZ * 2 * (pscale + 1))) - 1;
+               current_step_freq = DEFAULT_STEP_FREQ_HZ;
+               TimerPeriod = (SystemCoreClock / (DEFAULT_STEP_FREQ_HZ * 2 * (pscale + 1))) - 1;
                TIM_SetAutoreload(TIM5, TimerPeriod);
                TIM_Cmd(TIM5, ENABLE);
 
@@ -568,6 +579,31 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                }
 
             }
+
+            break;
+         case TILT_STEPPER_HOLD:
+            /* We don't need to do anything here...just don't move. */
+            break;
+         case TILT_STEPPER_FIND_POS:
+            if(ts_state_timer == 1)
+            {
+               if(current_pos_rad > target_pos_rad)
+               {
+                  tilt_stepper_motor_set_CCW();
+               }
+               else
+               {
+                  tilt_stepper_motor_set_CW();
+               }
+
+               TIM_Cmd(TIM5, DISABLE);
+               current_step_freq = DEFAULT_STEP_FREQ_HZ;
+               TimerPeriod = (SystemCoreClock / (DEFAULT_STEP_FREQ_HZ * 2 * (pscale + 1))) - 1;
+               TIM_SetAutoreload(TIM5, TimerPeriod);
+               TIM_Cmd(TIM5, ENABLE);
+            }
+
+
 
             break;
          case TILT_STEPPER_TILT_TABLE:
@@ -727,17 +763,33 @@ void tilt_stepper_motor_set_CCW(void)
 
 void tilt_stepper_motor_stop(void)
 {
-
+   tilt_stepper_motor_state_change(TILT_STEPPER_HOLD ,1);
 }
 
 void tilt_stepper_motor_tilt(void)
 {
+   ts_state_after_home = TILT_STEPPER_TEST_DELAY;
+   tilt_stepper_motor_state_change(TILT_STEPPER_HOME, 1);
 }
 
 void tilt_stepper_motor_home(void)
 {
+   ts_state_after_home = TILT_STEPPER_HOLD;
+   tilt_stepper_motor_state_change(TILT_STEPPER_HOME, 1);
 }
 
 void tilt_stepper_motor_go_to_pos(float rad)
 {
+   if(rad < 0.0f)
+   {
+      rad = 0.0f;
+   }
+
+   if(rad > (TILT_STEPPER_TWO_PI / 2.0f))
+   {
+      rad = (TILT_STEPPER_TWO_PI / 2.0f);
+   }
+
+   target_pos_rad = rad;
+   tilt_stepper_motor_state_change(TILT_STEPPER_FIND_POS, 1);
 }
