@@ -264,5 +264,13 @@ void TMC260_status(tmc260_status_types status_type, tmc260_status_struct *status
  *       outside the driver.
  */
 
+uint8_t TMC260_send_drvctrl_sdoff(uint8_t ph_a_dir, uint8_t ph_a_cur, uint8_t ph_b_dir, uint8_t ph_b_cur);
+uint8_t TMC260_send_drvctrl_sdon(uint8_t intpol, uint8_t dedge, microstep_config mres);
+uint8_t TMC260_send_chopconf(uint8_t tbl, uint8_t chm, uint8_t rndtf, uint8_t hdec, uint8_t hend, uint8_t hstrt, uint8_t toff);
+uint8_t TMC260_send_smarten(uint8_t seimin, uint8_t sedn, uint8_t semax, uint8_t seup, uint8_t semin);
+uint8_t TMC260_send_sgcsconf(uint8_t sfilt, uint8_t sgt, uint8_t cs);
+uint8_t TMC260_send_drvconf(uint8_t tst, uint8_t slph, uint8_t slpl, uint8_t diss2g, uint8_t ts2g, uint8_t sdoff, uint8_t vsense, uint8_t rdsel);
+
+
 
 #endif

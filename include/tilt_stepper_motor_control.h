@@ -49,4 +49,9 @@ void tilt_stepper_motor_init(void);
 
 void tilt_stepper_motor_pos(float *rad);
 
+void tilt_stepper_motor_stop(void);
+void tilt_stepper_motor_tilt(void);
+void tilt_stepper_motor_home(void);
+void tilt_stepper_motor_go_to_pos(float rad);
+
 #endif

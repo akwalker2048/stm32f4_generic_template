@@ -12,7 +12,12 @@ OD      = $(PRG_PREFIX)objdump
 AS      = $(PRG_PREFIX)as
 
 #OpenOCD Command
-OPENOCD_CMD = openocd -f ./scripts/openocd.cfg
+#Used for STLink on board the discovery board.
+#OPENOCD_CMD = openocd -f ./scripts/openocd.cfg
+#Used for STLink V2 Dongle
+#OPENOCD_CMD = openocd -f ./scripts/openocd_dongle.cfg
+#Used for STLink on discovery board to program Martin's LIDAR tilter card.
+OPENOCD_CMD = openocd -f ./scripts/openocd_disc_stlink_to_martin.cfg
 
 #ST Specific Stuff
 ST_CMSIS_INCLUDE = /home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Libraries/CMSIS/Device/ST/STM32F4xx/Include
@@ -29,4 +34,7 @@ GENERIC_PACKET_INC_DIR = ../stm32f4_generic_packet/include
 GIT_REVISION=$(shell ./git-revision.sh)
 
 #Hardware Specific Stuff
+#if using the card Martin laid out.
 LOCAL_CFLAGS = -D"STM32F40_41xxx" -D"USE_STDPERIPH_DRIVER" -D"HSE_VALUE=8000000" -DGIT_REVISION='"$(GIT_REVISION)"'
+#if using the DISC1 card and TOS_100...
+#LOCAL_CFLAGS = -D"STM32F40_41xxx" -D"USE_STDPERIPH_DRIVER" -D"HSE_VALUE=8000000" -DGIT_REVISION='"$(GIT_REVISION)"' -D"TOS_100_DEV_BOARD"

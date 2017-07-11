@@ -38,13 +38,6 @@ uint8_t TMC260_spi_read_byte(uint8_t *byte);
 uint8_t TMC260_spi_write_read_byte(uint8_t write_byte, uint8_t *read_byte);
 uint8_t TMC260_spi_write_datagram(uint32_t datagram);
 uint8_t TMC260_spi_read_write_datagram(uint32_t write_datagram, uint32_t *read_datagram);
-uint8_t TMC260_send_drvctrl_sdoff(uint8_t ph_a_dir, uint8_t ph_a_cur, uint8_t ph_b_dir, uint8_t ph_b_cur);
-uint8_t TMC260_send_drvctrl_sdon(uint8_t intpol, uint8_t dedge, microstep_config mres);
-uint8_t TMC260_send_chopconf(uint8_t tbl, uint8_t chm, uint8_t rndtf, uint8_t hdec, uint8_t hend, uint8_t hstrt, uint8_t toff);
-uint8_t TMC260_send_smarten(uint8_t seimin, uint8_t sedn, uint8_t semax, uint8_t seup, uint8_t semin);
-uint8_t TMC260_send_sgcsconf(uint8_t sfilt, uint8_t sgt, uint8_t cs);
-uint8_t TMC260_send_drvconf(uint8_t tst, uint8_t slph, uint8_t slpl, uint8_t diss2g, uint8_t ts2g, uint8_t sdoff, uint8_t vsense, uint8_t rdsel);
-
 uint8_t TMC260_send_default_regs(void);
 
 /* Public function.  Doxygen documentation is in the header file. */
@@ -85,8 +78,11 @@ void TMC260_init_gpio(void)
    /* Enable clock for SYSCFG */
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
-
-   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2;
+#ifdef TOS_100_DEV_BOARD
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2;
+#else
+   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_2;
+#endif
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
@@ -99,6 +95,16 @@ void TMC260_init_gpio(void)
    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
    GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+#ifndef TOS_100_DEV_BOARD
+   /* Enable is now an input... */
+   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
+   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+   GPIO_Init(GPIOA, &GPIO_InitStructure);
+#endif
 
    /** @todo Make PC2 an EXTI so that we can easily catch and handle a stall condition. */
    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
