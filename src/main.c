@@ -80,7 +80,7 @@ int main(void)
    float vc14, vc15;
    GenericPacket gp, gp_two, gp_pos, gp_pos_rad, gp_mf;
 
-   uint32_t pos_count;
+   uint32_t pos_count, pos_ts;
    float pos_rad, prev_pos_rad;
 
    /* SystemCoreClockUpdate(); */
@@ -150,8 +150,9 @@ int main(void)
 
       if(tilt_stepper_motor_send_angle)
       {
-         tilt_stepper_motor_pos(&pos_rad);
-         create_motor_resp_position(&gp_pos_rad, pos_rad);
+         tilt_stepper_motor_pos(&pos_rad, &pos_ts);
+         /* create_motor_resp_position(&gp_pos_rad, pos_rad); */
+         create_motor_resp_position_ts(&gp_pos_rad, pos_rad, pos_ts);
          /**
           * @todo Need to set up the callback function so that we don't
           *       overwrite this packet with the next one.

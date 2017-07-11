@@ -52,7 +52,7 @@ void tilt_stepper_motor_init(void);
  *       you get to zero.
  */
 
-void tilt_stepper_motor_pos(float *rad);
+void tilt_stepper_motor_pos(float *rad, uint32_t *timestamp);
 
 void tilt_stepper_motor_stop(void);
 void tilt_stepper_motor_tilt(void);

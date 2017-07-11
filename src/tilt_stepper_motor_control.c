@@ -22,7 +22,8 @@
 /* Note that this can only bee included one time from one file. */
 #include "tilt_stepper_motor_profile.h"
 
-uint32_t ts_state_timer = 0;
+volatile uint32_t ts_cont_timer = 0;
+volatile uint32_t ts_state_timer = 0;
 tilt_stepper_states ts_state = TILT_STEPPER_INITIALIZE;
 tilt_stepper_states ts_state_after_home =  TILT_STEPPER_TEST_DELAY;
 
@@ -34,7 +35,8 @@ volatile uint32_t tilt_index = 0;
 volatile int32_t steps_from_home = 0;
 tilt_stepper_dirs current_step_dir = TILT_STEPPER_DIR_STOPPED;
 float current_step_freq = 0.0f;
-float current_pos_rad = 0.0f;
+volatile float current_pos_rad = 0.0f;
+volatile uint32_t current_pos_ts = 0;
 float target_pos_rad = 0.0f;
 
 GenericPacket gp_pos_rad;
@@ -487,9 +489,10 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
       debug_output_toggle(DEBUG_LED_BLUE);
 
       ts_state_timer++;
+      ts_cont_timer++;
 
 
-      if(ts_state_timer%25 == 0)
+      if(ts_state_timer%10 == 0)
       {
          if(tilt_stepper_motor_send_angle == 0)
          {
@@ -712,7 +715,7 @@ void tilt_stepper_motor_state_change(tilt_stepper_states new_state, uint8_t rese
 
 }
 
-void tilt_stepper_motor_pos(float *rad)
+void tilt_stepper_motor_pos(float *rad, uint32_t *timestamp)
 {
 
    /* *rad = (((float)tilt_index/(float)micro_steps_per_rev)*stepper_gear_ratio_den / stepper_gear_ratio_num) * TILT_STEPPER_TWO_PI; */
@@ -723,6 +726,7 @@ void tilt_stepper_motor_pos(float *rad)
    /* } */
 
    *rad = current_pos_rad;
+   *timestamp = current_pos_ts;
 
 }
 
@@ -743,6 +747,7 @@ void tilt_stepper_motor_step(void)
    /* current_pos_rad = (((float)steps_from_home/(float)micro_steps_per_rev)*stepper_gear_ratio_den / stepper_gear_ratio_num) * TILT_STEPPER_TWO_PI; */
 
    current_pos_rad = (((float)steps_from_home/(float)micro_steps_per_rev)*(stepper_gear_ratio_den / stepper_gear_ratio_num)) * TILT_STEPPER_TWO_PI;
+   current_pos_ts = ts_cont_timer;
 
    TMC260_enable();
    TMC260_step();
@@ -763,6 +768,7 @@ void tilt_stepper_motor_set_CCW(void)
 
 void tilt_stepper_motor_stop(void)
 {
+   ts_state_after_home = TILT_STEPPER_HOLD;
    tilt_stepper_motor_state_change(TILT_STEPPER_HOLD ,1);
 }
 
@@ -791,5 +797,6 @@ void tilt_stepper_motor_go_to_pos(float rad)
    }
 
    target_pos_rad = rad;
+   ts_state_after_home = TILT_STEPPER_HOLD;
    tilt_stepper_motor_state_change(TILT_STEPPER_FIND_POS, 1);
 }

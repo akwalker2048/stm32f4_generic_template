@@ -28,7 +28,7 @@ max_rad_per_sec = 10.0;
 %Discrete Time Information (Motor Control State Machine Period)
 dt = 0.001;
 %Time for Profile (sec)
-total_time = 1.0;
+total_time = 2.0;
 
 avg_vel = (max_tilt_rad - min_tilt_rad) ./ total_time;
 
