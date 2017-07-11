@@ -69,6 +69,8 @@ void rx_packet_handler(GenericPacket *gp_ptr)
 
    float pos;
 
+   uint8_t stat_type;
+
    if(rx_packet_handler_initialized)
    {
       switch(gp_ptr->gp[GP_LOC_PROJ_ID])
@@ -160,7 +162,9 @@ void rx_packet_handler(GenericPacket *gp_ptr)
                      break;
                   case MOTOR_TMC260_QUERY_STATUS:
                      {
-                        TMC260_status(TMC260_STATUS_CURRENT, &stat_struct, 0);
+                        extract_motor_tmc260_query_status(gp_ptr, &stat_type);
+
+                        TMC260_status(stat_type, &stat_struct, 0);
                         /* Respond with the status. */
                         retval_gpcb = gpcb_increment_temp_head(&gpcbs_rx_gp_queue);
                         if(retval_gpcb == GP_CIRC_BUFFER_SUCCESS)
@@ -178,8 +182,10 @@ void rx_packet_handler(GenericPacket *gp_ptr)
                      break; /* MOTOR_TMC260_QUERY_STATUS */
                   case MOTOR_TMC260_SET_DRVCTRL_SDON:
                      {
+                        tilt_stepper_motor_stop();
                         extract_motor_tmc260_set_drvctrl_sdon(gp_ptr, &intpol, &dedge, &mres);
                         TMC260_send_drvctrl_sdon(intpol, dedge, mres);
+                        tilt_stepper_motor_tilt();
                         /* Respond with ACK? */
 
                      }
@@ -191,8 +197,10 @@ void rx_packet_handler(GenericPacket *gp_ptr)
                      break; /* MOTOR_TMC260_QUERY_DRVCTRL_SDON */
                   case MOTOR_TMC260_SET_CHOPCONF:
                      {
+                        tilt_stepper_motor_stop();
                         extract_motor_tmc260_set_chopconf(gp_ptr, &tbl, &chm, &rndtf, &hdec, &hend, &hstrt, &toff);
                         TMC260_send_chopconf(tbl, chm, rndtf, hdec, hend, hstrt, toff);
+                        tilt_stepper_motor_tilt();
                         /* Respond with ACK? */
 
                      }
@@ -204,8 +212,10 @@ void rx_packet_handler(GenericPacket *gp_ptr)
                      break; /* MOTOR_TMC260_QUERY_CHOPCONF */
                   case MOTOR_TMC260_SET_SMARTEN:
                      {
+                        tilt_stepper_motor_stop();
                         extract_motor_tmc260_set_smarten(gp_ptr, &seimin, &sedn, &semax, &seup, &semin);
                         TMC260_send_smarten(seimin, sedn, semax, seup, semin);
+                        tilt_stepper_motor_tilt();
                         /* Respond with ACK? */
                      }
                      break; /* MOTOR_TMC260_SET_SMARTEN */
@@ -216,8 +226,10 @@ void rx_packet_handler(GenericPacket *gp_ptr)
                      break; /* MOTOR_TMC260_QUERY_SMARTEN */
                   case MOTOR_TMC260_SET_DRVCONF:
                      {
+                        tilt_stepper_motor_stop();
                         extract_motor_tmc260_set_drvconf(gp_ptr, &tst, &slph, &slpl, &diss2g, &ts2g, &sdoff, &vsense, &rdsel);
                         TMC260_send_drvconf(tst, slph, slpl, diss2g, ts2g, sdoff, vsense, rdsel);
+                        tilt_stepper_motor_tilt();
                         /* Respond with ACK? */
                      }
                      break; /* MOTOR_TMC260_SET_DRVCONF */
@@ -228,8 +240,10 @@ void rx_packet_handler(GenericPacket *gp_ptr)
                      break; /* MOTOR_TMC260_QUERY_DRVCONF */
                   case MOTOR_TMC260_SET_SGCSCONF:
                      {
+                        tilt_stepper_motor_stop();
                         extract_motor_tmc260_set_sgcsconf(gp_ptr, &sfilt, &sgt, &cs);
                         TMC260_send_sgcsconf(sfilt, sgt, cs);
+                        tilt_stepper_motor_tilt();
                         /* Respond with ACK? or the MOTOR_TMC260_RESP_SGCSCONF packet?*/
                      }
                      break; /* MOTOR_TMC260_SET_SGCSCONF */

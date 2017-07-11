@@ -558,23 +558,23 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                   if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_1) == Bit_SET)
                   {
                      /* Flag is uncovered.  We need to go CCW until we cover it. */
-                     tilt_stepper_motor_set_CCW();
+                     tilt_stepper_motor_set_CW();
                   }
                   else
                   {
                      /* Flag is covered. We need to go CW until we uncover it. */
-                     tilt_stepper_motor_set_CW();
+                     tilt_stepper_motor_set_CCW();
                   }
                }
                else
                {
                   if(current_pos_rad > 0.0f)
                   {
-                     tilt_stepper_motor_set_CCW();
+                     tilt_stepper_motor_set_CW();
                   }
                   else
                   {
-                     tilt_stepper_motor_set_CW();
+                     tilt_stepper_motor_set_CCW();
                   }
                }
 
@@ -589,11 +589,11 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
             {
                if(current_pos_rad > target_pos_rad)
                {
-                  tilt_stepper_motor_set_CCW();
+                  tilt_stepper_motor_set_CW();
                }
                else
                {
-                  tilt_stepper_motor_set_CW();
+                  tilt_stepper_motor_set_CCW();
                }
 
                TIM_Cmd(TIM5, DISABLE);
@@ -612,12 +612,12 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                if(last_dir)
                {
                   last_dir = 0;
-                  tilt_stepper_motor_set_CW();
+                  tilt_stepper_motor_set_CCW();
                }
                else
                {
                   last_dir = 1;
-                  tilt_stepper_motor_set_CCW();
+                  tilt_stepper_motor_set_CW();
                }
 
                tilt_index = 0;
@@ -732,12 +732,12 @@ void tilt_stepper_motor_step(void)
 
    if(current_step_dir == TILT_STEPPER_DIR_CW)
    {
-      steps_from_home++;
+      steps_from_home--;
    }
 
    if(current_step_dir == TILT_STEPPER_DIR_CCW)
    {
-      steps_from_home--;
+      steps_from_home++;
    }
 
    /* current_pos_rad = (((float)steps_from_home/(float)micro_steps_per_rev)*stepper_gear_ratio_den / stepper_gear_ratio_num) * TILT_STEPPER_TWO_PI; */
