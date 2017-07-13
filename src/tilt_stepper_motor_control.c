@@ -22,6 +22,8 @@
 /* Note that this can only bee included one time from one file. */
 #include "tilt_stepper_motor_profile.h"
 
+#include "watchdog.h"
+
 volatile uint32_t ts_cont_timer = 0;
 volatile uint32_t ts_state_timer = 0;
 tilt_stepper_states ts_state = TILT_STEPPER_INITIALIZE;
@@ -79,7 +81,7 @@ void tilt_stepper_motor_init(void)
    tilt_stepper_motor_init_home_sensor_real_deal();
 #endif
    /* Set initial state and stuch... */
-
+   watchdog_init();
 
 }
 
@@ -493,6 +495,7 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
       ts_state_timer++;
       ts_cont_timer++;
 
+      watchdog_tickle();
 
       if(ts_state_timer%10 == 0)
       {

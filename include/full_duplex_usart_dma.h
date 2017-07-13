@@ -37,6 +37,8 @@
 
 #define FDUD_RX_RAM_SIZE (4 * FDUD_RX_DMA_SIZE)
 
+#define PACKET_RESET_TIMOUT 500
+
 /* Typedefs for Tx Queue Callback */
 typedef void (*FDUD_TxQueueCallback)(uint32_t callback_data);
 

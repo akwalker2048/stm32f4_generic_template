@@ -72,6 +72,9 @@ uint8_t received_bytes[0xFB];
 uint8_t received_bytes_index = 0;
 volatile uint8_t received_bytes_sending = 0;
 
+uint32_t packet_reset_timer = 0;
+uint8_t  packet_reset_active = 0;
+
 /* Private Functions */
 void full_duplex_usart_dma_communications_init(void);
 void full_duplex_usart_dma_write(void);
@@ -183,6 +186,11 @@ void TIM8_BRK_TIM12_IRQHandler(void)
        * now...well just service the single state of "handle the DMA buffer".
        */
       full_duplex_usart_dma_service();
+
+      if(packet_reset_active)
+      {
+         packet_reset_timer++;
+      }
 
       TIM_ClearITPendingBit(TIM12, TIM_IT_Update);
    }
@@ -341,31 +349,27 @@ void full_duplex_usart_dma_service_rx(void)
 
             if(retval_gpcb == GP_CHECKSUM_MATCH)
             {
-               /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_BLUE) == Bit_SET) */
-               /* { */
-               /*    GPIO_ResetBits(GPIOD, LED_PIN_BLUE); */
-               /* } */
-               /* else */
-               /* { */
-               /*    GPIO_SetBits(GPIOD, LED_PIN_BLUE); */
-               /* } */
-
-               /* if(GPIO_ReadInputDataBit(GPIOD, LED_PIN_ORANGE) == Bit_SET) */
-               /* { */
-               /*    GPIO_ResetBits(GPIOD, LED_PIN_ORANGE); */
-               /* } */
-               /* else */
-               /* { */
-               /*    GPIO_SetBits(GPIOD, LED_PIN_ORANGE); */
-               /* } */
                debug_output_toggle(DEBUG_LED_ORANGE);
 
+               packet_reset_active = 0;
+               packet_reset_timer = 0;
+            }
+            else
+            {
+               packet_reset_active = 1;
 
             }
 
          }
       }while ((retval == CB_SUCCESS)&&((retval_gpcb == GP_CIRC_BUFFER_SUCCESS)||(retval_gpcb == GP_ERROR_CHECKSUM_MISMATCH)||(retval_gpcb == GP_CHECKSUM_MATCH)));
 
+      if((packet_reset_active)&&(packet_reset_timer > PACKET_RESET_TIMOUT))
+      {
+         /* Reset the packet so that we can catch the next one. */
+         retval = gp_receive_byte(0x00, GP_CONTROL_INITIALIZE, &(fdud_rx_gpcb.gpcb[fdud_rx_gpcb.gpcb_head_temp]));
+         packet_reset_active = 0;
+         packet_reset_timer = 0;
+      }
 
    }
 
