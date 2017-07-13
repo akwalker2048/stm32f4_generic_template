@@ -58,6 +58,22 @@ extern volatile uint8_t send_motor_feedback;
 
 extern volatile uint8_t tilt_stepper_motor_send_angle;
 
+volatile uint8_t cts_pos_packet = 1;
+#define POS_PACKET_CALLBACK_NUM 0x04
+
+void main_packet_send_callback(uint32_t packet_num);
+FDUD_TxQueueCallback gpcbs_main_queue_callback = &main_packet_send_callback;
+
+
+void main_packet_send_callback(uint32_t packet_num)
+{
+   if(packet_num == POS_PACKET_CALLBACK_NUM)
+   {
+      cts_pos_packet = 1;
+   }
+
+}
+
 /**
  * @brief  Main program
  * @param  None
@@ -150,15 +166,19 @@ int main(void)
 
       if(tilt_stepper_motor_send_angle)
       {
-         tilt_stepper_motor_pos(&pos_rad, &pos_ts);
-         /* create_motor_resp_position(&gp_pos_rad, pos_rad); */
-         create_motor_resp_position_ts(&gp_pos_rad, pos_rad, pos_ts);
-         /**
-          * @todo Need to set up the callback function so that we don't
-          *       overwrite this packet with the next one.
-          */
-         full_duplex_usart_dma_add_to_queue(&gp_pos_rad, NULL, 0);
-         tilt_stepper_motor_send_angle = 0;
+         if(cts_pos_packet)
+         {
+            tilt_stepper_motor_pos(&pos_rad, &pos_ts);
+            /* create_motor_resp_position(&gp_pos_rad, pos_rad); */
+            create_motor_resp_position_ts(&gp_pos_rad, pos_rad, pos_ts);
+            /**
+             * @todo Need to set up the callback function so that we don't
+             *       overwrite this packet with the next one.
+             */
+            cts_pos_packet = 0;
+            full_duplex_usart_dma_add_to_queue(&gp_pos_rad, gpcbs_main_queue_callback, POS_PACKET_CALLBACK_NUM);
+            tilt_stepper_motor_send_angle = 0;
+         }
       }
 
       /* tilt_motor_get_angle(&pos_rad); */

@@ -497,7 +497,7 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
 
       watchdog_tickle();
 
-      if(ts_state_timer%10 == 0)
+      if(ts_state_timer%25 == 0)
       {
          if(tilt_stepper_motor_send_angle == 0)
          {

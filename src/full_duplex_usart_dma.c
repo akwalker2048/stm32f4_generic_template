@@ -587,15 +587,6 @@ void DMA2_Stream7_IRQHandler(void)
        */
       while (USART_GetFlagStatus(USART1, USART_FLAG_TC)==RESET);
 
-      /* Not sure whether this should go at the beginning or the end.  In this
-       * case we will not have another interrupt being generated while we are in
-       * here...so I don't think it matters.
-       *
-       * If we're goinig to call full_duplex_usart_dma_write() from within this
-       * function, we need to have already cleared this bit.  Calling that
-       * function will result in a new TC interrupt being set.
-       */
-      DMA_ClearITPendingBit(DMA2_Stream7, DMA_IT_TCIF7);
 
       /* Disable everything, we will turn it back on when we are ready to send
        * the next packet.
@@ -610,6 +601,17 @@ void DMA2_Stream7_IRQHandler(void)
       {
          fdud_txq_cb.fdud_txqs_ptr[fdud_txq_cb.tail].cb(fdud_txq_cb.fdud_txqs_ptr[fdud_txq_cb.tail].cb_data);
       }
+
+      /* Not sure whether this should go at the beginning or the end.  In this
+       * case we will not have another interrupt being generated while we are in
+       * here...so I don't think it matters.
+       *
+       * If we're goinig to call full_duplex_usart_dma_write() from within this
+       * function, we need to have already cleared this bit.  Calling that
+       * function will result in a new TC interrupt being set.
+       */
+      DMA_ClearITPendingBit(DMA2_Stream7, DMA_IT_TCIF7);
+
       /* Increment the tail */
       if(fdud_txq_cb.head != fdud_txq_cb.tail)
       {
