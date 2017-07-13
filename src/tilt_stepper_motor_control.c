@@ -495,7 +495,10 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
       ts_state_timer++;
       ts_cont_timer++;
 
+      /* if(ts_cont_timer < 10000) */
+      /* { */
       watchdog_tickle();
+      /* } */
 
       if(ts_state_timer%25 == 0)
       {
@@ -530,12 +533,14 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
       {
          case TILT_STEPPER_INITIALIZE:
 
-            TMC260_initialize();
+            if(ts_state_timer > 1000)
+            {
+               TMC260_initialize();
 
-            ts_state_after_home = TILT_STEPPER_TEST_DELAY;
-            tilt_stepper_motor_state_change(TILT_STEPPER_HOME, 1);
-            /* tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CW, 1); */
-
+               ts_state_after_home = TILT_STEPPER_TEST_DELAY;
+               tilt_stepper_motor_state_change(TILT_STEPPER_HOME, 1);
+               /* tilt_stepper_motor_state_change(TILT_STEPPER_TEST_CW, 1); */
+            }
             break;
          case TILT_STEPPER_HOME:
             /**
@@ -586,6 +591,15 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void)
                   }
                }
 
+            }
+
+            /* In case we aren't moving...let's reset again. */
+            if(ts_state_timer > 5000)
+            {
+               TIM_Cmd(TIM5, DISABLE);
+               current_pos_rad = 0.0f;
+               steps_from_home = 0;
+               tilt_stepper_motor_state_change(TILT_STEPPER_INITIALIZE, 1);
             }
 
             break;

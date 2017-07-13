@@ -94,7 +94,8 @@ int main(void)
 
 
    float vc14, vc15;
-   GenericPacket gp, gp_two, gp_pos, gp_pos_rad, gp_mf;
+   GenericPacket gp_porrst, gp_sftrst, gp_pinrst, gp_wwdgrst;
+   GenericPacket gp_pos_rad;
 
    uint32_t pos_count, pos_ts;
    float pos_rad, prev_pos_rad;
@@ -135,6 +136,38 @@ int main(void)
    prev_pos_rad = pos_rad;
 
    grab_frame = 3;
+
+
+
+   /* Check why we came out of reset? */
+   if(RCC_GetFlagStatus(RCC_FLAG_WWDGRST) == SET)
+   {
+      create_universal_timestamp(&gp_wwdgrst, 0x1111);
+      full_duplex_usart_dma_add_to_queue(&gp_wwdgrst, NULL, 0);
+   }
+
+   if(RCC_GetFlagStatus(RCC_FLAG_SFTRST) == SET)
+   {
+      create_universal_timestamp(&gp_sftrst, 0x2222);
+      full_duplex_usart_dma_add_to_queue(&gp_sftrst, NULL, 0);
+   }
+
+   if(RCC_GetFlagStatus(RCC_FLAG_PORRST) == SET)
+   {
+      create_universal_timestamp(&gp_porrst, 0x3333);
+      full_duplex_usart_dma_add_to_queue(&gp_porrst, NULL, 0);
+   }
+
+   if(RCC_GetFlagStatus(RCC_FLAG_PINRST) == SET)
+   {
+      /* This will always be true as best I can tell...so why check it? */
+      create_universal_timestamp(&gp_pinrst, 0x4444);
+      full_duplex_usart_dma_add_to_queue(&gp_pinrst, NULL, 0);
+   }
+
+
+   /* Now clear all of the RCC flags.  Otherwise, they will continue to be set. */
+   RCC_ClearFlag();
 
    while(1)
    {
