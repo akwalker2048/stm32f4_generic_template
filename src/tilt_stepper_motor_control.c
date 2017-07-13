@@ -46,6 +46,8 @@ uint8_t home_dir = 0;
 
 volatile uint8_t tilt_stepper_motor_send_angle = 0;
 
+float stepper_profile_multiplier = 1.0f;
+
 uint32_t TimerPeriod = 0;
 uint16_t pscale = 0;
 
@@ -462,7 +464,7 @@ void TIM5_IRQHandler(void)
          if((tilt_index < tilt_elements)&&(stepper_profile[tilt_index] > 0))
          {
             tilt_stepper_motor_step();
-            TIM_SetAutoreload(TIM5, stepper_profile[tilt_index]);
+            TIM_SetAutoreload(TIM5, (uint32_t)(stepper_profile_multiplier * stepper_profile[tilt_index]));
          }
          else
          {
@@ -799,4 +801,9 @@ void tilt_stepper_motor_go_to_pos(float rad)
    target_pos_rad = rad;
    ts_state_after_home = TILT_STEPPER_HOLD;
    tilt_stepper_motor_state_change(TILT_STEPPER_FIND_POS, 1);
+}
+
+void tilt_stepper_motor_set_profile_multiplier(float multiplier)
+{
+   stepper_profile_multiplier = multiplier;
 }

@@ -6,7 +6,7 @@ stepper_gear_ratio_num = 74.0;
 stepper_gear_ratio_den = 16.0;
 stepper_gear_ratio = stepper_gear_ratio_num / stepper_gear_ratio_den;
 steps_per_rev = 200;
-micro_steps_per_step = 64;
+micro_steps_per_step = 128;
 micro_steps_per_rev = (steps_per_rev * micro_steps_per_step);
 rad_per_micro_step = 2.0*pi/(micro_steps_per_rev * stepper_gear_ratio);
 
@@ -28,7 +28,7 @@ max_rad_per_sec = 10.0;
 %Discrete Time Information (Motor Control State Machine Period)
 dt = 0.001;
 %Time for Profile (sec)
-total_time = 2.0;
+total_time = 1.0;
 
 avg_vel = (max_tilt_rad - min_tilt_rad) ./ total_time;
 

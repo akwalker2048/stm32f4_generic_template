@@ -57,6 +57,7 @@ void tilt_stepper_motor_pos(float *rad, uint32_t *timestamp);
 void tilt_stepper_motor_stop(void);
 void tilt_stepper_motor_tilt(void);
 void tilt_stepper_motor_home(void);
+void tilt_stepper_motor_set_profile_multiplier(float multiplier);
 void tilt_stepper_motor_go_to_pos(float rad);
 
 #endif

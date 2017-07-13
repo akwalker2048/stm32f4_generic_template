@@ -71,6 +71,8 @@ void rx_packet_handler(GenericPacket *gp_ptr)
 
    uint8_t stat_type;
 
+   float multiplier;
+
    if(rx_packet_handler_initialized)
    {
       switch(gp_ptr->gp[GP_LOC_PROJ_ID])
@@ -158,6 +160,14 @@ void rx_packet_handler(GenericPacket *gp_ptr)
                      {
                         extract_motor_set_position(gp_ptr, &pos);
                         tilt_stepper_motor_go_to_pos(pos);
+                     }
+                     break;
+                  case MOTOR_SET_TILT_MULTIPLIER:
+                     {
+                        tilt_stepper_motor_stop();
+                        extract_motor_set_tilt_multiplier(gp_ptr, &multiplier);
+                        tilt_stepper_motor_set_profile_multiplier(multiplier);
+                        tilt_stepper_motor_tilt();
                      }
                      break;
                   case MOTOR_TMC260_QUERY_STATUS:

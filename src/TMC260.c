@@ -522,7 +522,7 @@ void TMC260_init_config(void)
    /* */
    TMC260_send_drvconf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
    /* No step interpoloation, step on both edges, full stepping... */
-   TMC260_send_drvctrl_sdon(0x00, 0x01, MICROSTEP_CONFIG_64);
+   TMC260_send_drvctrl_sdon(0x00, 0x01, MICROSTEP_CONFIG_128);
 
    /* /\* /\\* *\\/ *\/ */
    /* /\* TMC260_send_drvconf(0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00); *\/ */
