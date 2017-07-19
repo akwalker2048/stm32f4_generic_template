@@ -92,46 +92,46 @@ void rx_packet_handler(GenericPacket *gp_ptr)
                {
                   case MOTOR_SET_PID:
                      {
-                        /* GPIO_SetBits(GPIOD, LED_PIN_RED); */
+                        /* /\* GPIO_SetBits(GPIOD, LED_PIN_RED); *\/ */
 
-                        /* Extract the new values. */
-                        extract_motor_set_pid(gp_ptr, &proportional, &integral, &derivative);
-                        /* Call a function here to set the gains. */
-                        retval = tilt_motor_set_pid_gains(proportional, integral, derivative);
-                        if(retval == 0)
-                        {
-                           /* Query the new gains from the motor driver. */
-                           proportional = 0.0f;
-                           integral = 0.0f;
-                           derivative = 0.0f;
-                           retval = tilt_motor_query_pid_gains(&proportional, &integral, &derivative);
-                           if(retval == 0)
-                           {
-                              /* Respond with the new gains. */
-                              retval_gpcb = gpcb_increment_temp_head(&gpcbs_rx_gp_queue);
-                              if(retval_gpcb == GP_CIRC_BUFFER_SUCCESS)
-                              {
-                                 create_motor_resp_pid(&(gpcbs_rx_gp_queue.gpcb[gpcbs_rx_gp_queue.gpcb_head_temp]), proportional, integral, derivative);
-                                 retval_gpcb = gpcb_increment_head(&gpcbs_rx_gp_queue);
-                                 if(retval_gpcb == GP_CIRC_BUFFER_SUCCESS)
-                                 {
-                                    /* Add to full_duplex_outgoing_queueu....... */
-                                    /* And don't forget to write that callback function... */
-                                    retval_fdud = full_duplex_usart_dma_add_to_queue(&(gpcbs_rx_gp_queue.gpcb[gpcbs_rx_gp_queue.gpcb_head]), gpcbs_rx_gp_queue_callback, gpcbs_rx_gp_queue.gpcb_head);
-                                    if(retval_fdud == FDUD_SUCCESS)
-                                    {
+                        /* /\* Extract the new values. *\/ */
+                        /* extract_motor_set_pid(gp_ptr, &proportional, &integral, &derivative); */
+                        /* /\* Call a function here to set the gains. *\/ */
+                        /* retval = tilt_motor_set_pid_gains(proportional, integral, derivative); */
+                        /* if(retval == 0) */
+                        /* { */
+                        /*    /\* Query the new gains from the motor driver. *\/ */
+                        /*    proportional = 0.0f; */
+                        /*    integral = 0.0f; */
+                        /*    derivative = 0.0f; */
+                        /*    retval = tilt_motor_query_pid_gains(&proportional, &integral, &derivative); */
+                        /*    if(retval == 0) */
+                        /*    { */
+                        /*       /\* Respond with the new gains. *\/ */
+                        /*       retval_gpcb = gpcb_increment_temp_head(&gpcbs_rx_gp_queue); */
+                        /*       if(retval_gpcb == GP_CIRC_BUFFER_SUCCESS) */
+                        /*       { */
+                        /*          create_motor_resp_pid(&(gpcbs_rx_gp_queue.gpcb[gpcbs_rx_gp_queue.gpcb_head_temp]), proportional, integral, derivative); */
+                        /*          retval_gpcb = gpcb_increment_head(&gpcbs_rx_gp_queue); */
+                        /*          if(retval_gpcb == GP_CIRC_BUFFER_SUCCESS) */
+                        /*          { */
+                        /*             /\* Add to full_duplex_outgoing_queueu....... *\/ */
+                        /*             /\* And don't forget to write that callback function... *\/ */
+                        /*             retval_fdud = full_duplex_usart_dma_add_to_queue(&(gpcbs_rx_gp_queue.gpcb[gpcbs_rx_gp_queue.gpcb_head]), gpcbs_rx_gp_queue_callback, gpcbs_rx_gp_queue.gpcb_head); */
+                        /*             if(retval_fdud == FDUD_SUCCESS) */
+                        /*             { */
 
-                                    }
-                                 }
-                              }
-                              else
-                              {
-                                 /* Someone else was already writing the next outgoing
-                                    gp.  We need to handle that somehow.
-                                 */
-                              }
-                           }
-                        }
+                        /*             } */
+                        /*          } */
+                        /*       } */
+                        /*       else */
+                        /*       { */
+                        /*          /\* Someone else was already writing the next outgoing */
+                        /*             gp.  We need to handle that somehow. */
+                        /*          *\/ */
+                        /*       } */
+                        /*    } */
+                        /* } */
                         /* GPIO_ResetBits(GPIOD, LED_PIN_RED); */
                      } /* MOTOR_SET_PID */
                      break;

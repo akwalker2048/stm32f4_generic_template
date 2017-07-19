@@ -17,7 +17,9 @@ AS      = $(PRG_PREFIX)as
 #Used for STLink V2 Dongle
 #OPENOCD_CMD = openocd -f ./scripts/openocd_dongle.cfg
 #Used for STLink on discovery board to program Martin's LIDAR tilter card.
-OPENOCD_CMD = openocd -f ./scripts/openocd_disc_stlink_to_martin.cfg
+#OPENOCD_CMD = openocd -f ./scripts/openocd_disc_stlink_to_martin.cfg
+#Use for STM32F3 Discovery STLink to Martin's LIDAR...
+OPENOCD_CMD = openocd -f ./scripts/openocd_f3disc_stlink_to_martin.cfg
 
 #ST Specific Stuff
 ST_CMSIS_INCLUDE = /home/awalker/opt/STM32F4xx_DSP_StdPeriph_Lib_V1.8.0/Libraries/CMSIS/Device/ST/STM32F4xx/Include
